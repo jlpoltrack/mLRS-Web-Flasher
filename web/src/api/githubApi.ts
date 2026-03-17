@@ -119,9 +119,9 @@ export const githubApi = {
   },
 
   listDevices: async (type: string): Promise<string[]> => {
-    if (type === 'tx') return Object.keys(g_txModuleExternalDeviceTypeDict);
-    if (type === 'rx') return Object.keys(g_receiverDeviceTypeDict);
-    if (type === 'txint') return Object.keys(g_txModuleInternalDeviceTypeDict);
+    if (type === 'tx') return Object.keys(g_txModuleExternalDeviceTypeDict).sort();
+    if (type === 'rx') return Object.keys(g_receiverDeviceTypeDict).sort();
+    if (type === 'txint') return Object.keys(g_txModuleInternalDeviceTypeDict).sort();
     return [];
   },
 
