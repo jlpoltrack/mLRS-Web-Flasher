@@ -35,10 +35,10 @@ jobs:
         id: base_path
         run: |
           if [ "${{ github.ref_name }}" = "main" ]; then
-            echo "BASE_PATH=/mLRS-Flasher/" >> $GITHUB_ENV
+            echo "BASE_PATH=/mLRS-Web-Flasher/" >> $GITHUB_ENV
             echo "DEST_DIR=." >> $GITHUB_ENV
           else
-            echo "BASE_PATH=/mLRS-Flasher/${{ github.ref_name }}/" >> $GITHUB_ENV
+            echo "BASE_PATH=/mLRS-Web-Flasher/${{ github.ref_name }}/" >> $GITHUB_ENV
             echo "DEST_DIR=${{ github.ref_name }}" >> $GITHUB_ENV
           fi
 

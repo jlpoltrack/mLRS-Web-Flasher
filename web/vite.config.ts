@@ -4,7 +4,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: process.env.VITE_BASE_PATH || '/mLRS-Flasher/',
+  base: process.env.VITE_BASE_PATH || '/mLRS-Web-Flasher/',
 
   plugins: [
     react(),
