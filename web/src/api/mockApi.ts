@@ -20,7 +20,7 @@ export const api = {
     needsPort: true 
   }),
   pickDirectory: async (): Promise<string | null> => null,
-  checkForUpdates: async (): Promise<any> => null,
+
   flash: async (options: any): Promise<void> => { console.log('Mock flash', options); },
   downloadLua: async (options: any): Promise<void> => { console.log('Mock downloadLua', options); },
   cancelPython: async (): Promise<void> => { console.log('Mock cancel'); },

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import Navigation from './components/Navigation';
 import Console from './components/Console';
-import UpdateBanner from './components/UpdateBanner';
+
 import BrowserWarning from './components/BrowserWarning';
 import { TargetType, LogType, BackendTarget } from './constants';
 import './styles/app.css';
@@ -23,7 +23,7 @@ function App() {
   const [isFlashing, setIsFlashing] = useState(false);
   const [flashTarget, setFlashTarget] = useState<BackendTarget | null>(null);
   const [progress, setProgress] = useState(0);
-  const [updateInfo, setUpdateInfo] = useState<{ latestVersion: string; releaseUrl: string; updateAvailable: boolean } | null>(null);
+
   const [useLocalFile, setUseLocalFile] = useState(false);
 
   const hasLoaded = useRef(false);
@@ -80,20 +80,7 @@ function App() {
     }
     
 
-    // check for updates
-    async function checkUpdates() {
-      try {
-        const update = await api.checkForUpdates();
-        if (update && update.updateAvailable) {
-          setUpdateInfo(update);
-        }
-      } catch (err) {
-        console.error('Failed to check for updates:', err);
-      }
-    }
-
     loadInitialData();
-    checkUpdates();
   }, [addLog]);
 
   // listen for python output
@@ -228,13 +215,7 @@ function App() {
     <div className="app">
       <Navigation activeTab={activeTab} onTabChange={setActiveTab} useLocalFile={useLocalFile} onLocalFileToggle={setUseLocalFile} />
       <div className="main-content">
-        {updateInfo && (
-          <UpdateBanner 
-            version={updateInfo.latestVersion}
-            releaseUrl={updateInfo.releaseUrl}
-            onClose={() => setUpdateInfo(null)}
-          />
-        )}
+
         <BrowserWarning />
         <main className="content">
           {renderContent()}

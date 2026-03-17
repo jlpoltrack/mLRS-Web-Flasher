@@ -72,5 +72,4 @@ Windows users need WinUSB driver for STM32 DFU (ImpulseRC Driver Fixer or Zadig)
 ## Development Notes
 
 - The `docs/` directory contains detailed architecture documentation
-- Legacy Electron/Python code is archived in `z_archive/`
 - Firmware metadata is fetched from GitHub at runtime

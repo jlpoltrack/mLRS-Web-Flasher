@@ -38,21 +38,6 @@ export const api = {
     return githubApi.listWirelessBridgeFirmware(options);
   },
 
-  // update check
-  checkForUpdates: async () => {
-    try {
-      const response = await fetch('https://api.github.com/repos/jlpoltrack/mLRS-Flasher/releases/latest');
-      if (!response.ok) return { updateAvailable: false, latestVersion: '', releaseUrl: '' };
-      const data = await response.json();
-      return { 
-        updateAvailable: false, 
-        latestVersion: data.tag_name || '', 
-        releaseUrl: data.html_url || '' 
-      };
-    } catch (e) {
-      return { updateAvailable: false, latestVersion: '', releaseUrl: '' };
-    }
-  },
 
   pickDirectory: async (): Promise<string | null> => {
     // web app uses browser downloads instead of directory picker

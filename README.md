@@ -1,12 +1,12 @@
 <p align="left"><a href="https://raw.githubusercontent.com/olliw42/mLRS-docu/main/logos/mLRS_logo_long_w_slogan_1280x768.png"><img src="https://raw.githubusercontent.com/olliw42/mLRS-docu/main/logos/mLRS_logo_long_w_slogan_1280x768.png" align="center" height="153" width="256" ></a>
 
-# mLRS Flasher
+# mLRS Web Flasher
 
 A modern, web-based tool for flashing mLRS firmware to Tx modules and receivers.
 
 ## Overview
 
-This repository hosts the source code for the mLRS Flasher web application (`web/`). The previous Electron and Python-based versions of the application have been retired and archived in the `legacy_archive/` directory.
+This repository hosts the source code for the mLRS Web Flasher application (`web/`).
 
 To run the web application locally:
 ```bash
