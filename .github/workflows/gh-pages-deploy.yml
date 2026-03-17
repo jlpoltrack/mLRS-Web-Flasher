@@ -1,0 +1,56 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - '**'
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Set Base Path
+        id: base_path
+        run: |
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            echo "BASE_PATH=/mLRS-Flasher/" >> $GITHUB_ENV
+            echo "DEST_DIR=." >> $GITHUB_ENV
+          else
+            echo "BASE_PATH=/mLRS-Flasher/${{ github.ref_name }}/" >> $GITHUB_ENV
+            echo "DEST_DIR=${{ github.ref_name }}" >> $GITHUB_ENV
+          fi
+
+      - name: Build
+        run: VITE_BASE_PATH=${{ env.BASE_PATH }} npm run build
+        working-directory: web
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref != 'refs/heads/gh-pages'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web/dist
+          destination_dir: ${{ env.DEST_DIR }}
+          keep_files: true

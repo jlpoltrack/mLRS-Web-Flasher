@@ -1,0 +1,64 @@
+mLRS_Flasher.ini
+mlrs_flasher_runner.bat
+mlrs_flasher_runner.py
+z_cmd.bat
+temp/*
+venv/*
+build/*
+dist/*
+win_build/*
+win_dist/*
+tools/win_build/*
+tools/win_dist/*
+tools/venv/*
+.DS_Store
+
+# electron app
+electron/node_modules/
+electron/dist/
+python/
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+*.pyc
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+# *.so
+# *.dylib
+# *.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+#*.exe
+*.out
+*.app
+
+# Platformio
+.pio/
+.vscode/
+
+# Virtual Env
+.venv/
+
+# FTP scripts (contain credentials)
+scripts/check-ftp.sh
+scripts/cleanup-ftp.sh
