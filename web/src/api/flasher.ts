@@ -1,4 +1,4 @@
-// 2026-03-17
+// 2026-03-19
 import { ESPLoader, Transport, type Before } from 'esptool-js';
 import { DFU, DFUse } from 'webdfu';
 
@@ -345,22 +345,18 @@ async function flashESP(
         const firmwareOffset = 0x10000;
 
         if (cleanChip.includes('esp32c3')) {
-            bootloaderPath = resolveAssetPath('/assets/esp32c3/bootloader.bin');
-            bootAppPath = resolveAssetPath('/assets/esp32c3/boot_app0.bin');
+            // wireless bridge uses dedicated asset folder
+            const isBridge = options.isWirelessBridge ||
+                             (options.filename && options.filename.toLowerCase().includes('bridge'));
+            const assetFolder = isBridge ? 'esp32c3-bridge' : 'esp32c3';
+
+            bootloaderPath = resolveAssetPath(`/assets/${assetFolder}/bootloader.bin`);
+            partitionsPath = resolveAssetPath(`/assets/${assetFolder}/partitions.bin`);
+            bootAppPath = resolveAssetPath(`/assets/${assetFolder}/boot_app0.bin`);
             bootloaderOffset = 0x0000;
             flashSize = '4MB';
 
-            // Use no-OTA partition for ESP32C3 bridges (both external and internal Tx)
-            // Receivers continue to use the standard partitions.bin
-            const isBridge = options.isWirelessBridge ||
-                             (options.filename && options.filename.toLowerCase().includes('bridge'));
-
-            if (isBridge) {
-                partitionsPath = resolveAssetPath('/assets/esp32c3/partitions_noota.bin');
-                sm.log("Using no-OTA partition table for ESP32C3 bridge");
-            } else {
-                partitionsPath = resolveAssetPath('/assets/esp32c3/partitions.bin');
-            }
+            if (isBridge) sm.log("Using wireless bridge assets for ESP32C3");
         } else if (cleanChip.includes('esp32s3')) {
             bootloaderPath = resolveAssetPath('/assets/esp32s3/bootloader.bin');
             partitionsPath = resolveAssetPath('/assets/esp32s3/partitions.bin');
@@ -369,23 +365,33 @@ async function flashESP(
             flashSize = '8MB';
         } else {
             // Standard ESP32
-            partitionsPath = resolveAssetPath('/assets/esp32/partitions.bin');
-            bootAppPath = resolveAssetPath('/assets/esp32/boot_app0.bin');
+            // wireless bridge uses dedicated asset folder
+            const isBridge = options.isWirelessBridge ||
+                             (options.filename && options.filename.toLowerCase().includes('bridge'));
+            const assetFolder = isBridge ? 'esp32-bridge' : 'esp32';
+
+            partitionsPath = resolveAssetPath(`/assets/${assetFolder}/partitions.bin`);
+            bootAppPath = resolveAssetPath(`/assets/${assetFolder}/boot_app0.bin`);
             bootloaderOffset = 0x1000;
             flashSize = '4MB';
-            
-            // local file mode always uses 80qio; github downloads use version-based selection
-            let bootloaderFile = 'bootloader_80qio.bin';
-            if (!isLocalFile && filename) {
-                const match = filename.match(/v(\d+)\.(\d+)\.(\d+)/);
-                if (match) {
-                    const [_, major, minor, patch] = match.map(Number);
-                    if (major < 1 || (major === 1 && minor < 3) || (major === 1 && minor === 3 && patch < 7)) {
-                        bootloaderFile = 'bootloader_40dio.bin';
+
+            if (isBridge) {
+                bootloaderPath = resolveAssetPath(`/assets/${assetFolder}/bootloader.bin`);
+                sm.log("Using wireless bridge assets for ESP32");
+            } else {
+                // local file mode always uses 80qio; github downloads use version-based selection
+                let bootloaderFile = 'bootloader_80qio.bin';
+                if (!isLocalFile && filename) {
+                    const match = filename.match(/v(\d+)\.(\d+)\.(\d+)/);
+                    if (match) {
+                        const [_, major, minor, patch] = match.map(Number);
+                        if (major < 1 || (major === 1 && minor < 3) || (major === 1 && minor === 3 && patch < 7)) {
+                            bootloaderFile = 'bootloader_40dio.bin';
+                        }
                     }
                 }
+                bootloaderPath = resolveAssetPath(`/assets/esp32/${bootloaderFile}`);
             }
-            bootloaderPath = resolveAssetPath(`/assets/esp32/${bootloaderFile}`);
         }
 
         sm.log(`Downloading auxiliary files for ${cleanChip}...`);
