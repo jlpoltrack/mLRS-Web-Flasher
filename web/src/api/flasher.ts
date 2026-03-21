@@ -1,4 +1,4 @@
-// 2026-03-19
+// 2026-03-21
 import { ESPLoader, Transport, type Before } from 'esptool-js';
 import { DFU, DFUse } from 'webdfu';
 
@@ -308,9 +308,11 @@ async function flashESP(
   try {
     let chipName: string;
     
+    // map metadata reset values to esptool-js Before types
+    // 'dtr' means use default DTR/RTS reset; 'no dtr' and 'no_reset' are handled at line 282
     const resetMode = (flashMethod === 'ardupilot_passthrough' || flashMethod === 'inav_passthrough') 
         ? 'no_reset' as Before 
-        : (reset as Before || 'default_reset');
+        : ((reset && (reset.includes('no dtr') || reset.includes('no_reset'))) ? 'no_reset' as Before : 'default_reset' as Before);
     
 
     chipName = await esploader.main(resetMode);

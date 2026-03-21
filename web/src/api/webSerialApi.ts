@@ -1,5 +1,5 @@
 // web serial api - orchestration layer for flashing and downloads
-// 2026-03-17
+// 2026-03-21
 
 import { githubApi } from './githubApi';
 import { flash } from './flasher';
@@ -34,7 +34,7 @@ export const api = {
     return githubApi.getMetadata(options);
   },
   
-  listWirelessBridgeFirmware: async (options: { version: string, chipset: string }) => {
+  listWirelessBridgeFirmware: async (options: { version: string, chipset: string, fname?: string }) => {
     return githubApi.listWirelessBridgeFirmware(options);
   },
 
@@ -116,13 +116,11 @@ export const api = {
     // instead of fetching metadata for a possibly stale device selection
     let chipset: string;
     let metadata: any = null;
-    if (options.firmwareData) {
-      // use explicit chipset if provided (e.g. local file mode with mcu selector)
-      if (options.chipset) {
-        chipset = options.chipset;
-      } else {
-        chipset = options.flashMethod === 'esptool' ? 'esp32' : 'stm32';
-      }
+    if (options.chipset) {
+      // explicit chipset provided (e.g. wireless bridge flash, local file with mcu selector)
+      chipset = options.chipset;
+    } else if (options.firmwareData) {
+      chipset = options.flashMethod === 'esptool' ? 'esp32' : 'stm32';
     } else {
       metadata = await githubApi.getMetadata({ type, device, filename });
       if (!metadata) {
@@ -151,7 +149,7 @@ export const api = {
       passthroughSerial: options.passthroughSerial,
       passthroughIdentifier: options.passthroughIdentifier,
       activationBaud: options.activationBaud,
-      isWirelessBridge: !!metadata?.isWirelessBridgeFirmware,
+      isWirelessBridge: options.target === 'wireless_bridge' || !!metadata?.isWirelessBridgeFirmware,
       isLocalFile: !!options.firmwareData
     };
 

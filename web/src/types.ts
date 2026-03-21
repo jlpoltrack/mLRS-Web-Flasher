@@ -14,6 +14,7 @@ export interface FirmwareFile {
 
 export interface WirelessBridgeConfig {
   chipset?: string;
+  fname?: string;
   erase?: string;
   baud?: number;
   reset?: string;
