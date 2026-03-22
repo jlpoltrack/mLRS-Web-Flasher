@@ -1,4 +1,4 @@
-// 2026-03-21
+// 2026-03-22
 import { ESPLoader, Transport, type Before } from 'esptool-js';
 import { DFU, DFUse } from 'webdfu';
 
@@ -474,6 +474,9 @@ async function flashESP(
     sm.transition('DONE');
   } catch (err) {
     sm.transition('ERROR', `Error during ESP flash: ${err instanceof Error ? err.message : String(err)}`);
+    // close transport and port so the user can retry
+    try { await transport.disconnect(); } catch (_) { /* ignore */ }
+    try { if (port.readable || port.writable) await port.close(); } catch (_) { /* ignore */ }
     throw err;
   }
 }
