@@ -39,6 +39,10 @@ export const g_targetDict: Record<string, any> = {
     'tx-matek' : {
         'flashmethod' : 'dfu',
         'description' : description_stm32_dfu_default + "\nWireless bridge: HC04, cannot be flashed\n",
+        'tx-matek-mtx-db30' : {
+            'description' : description_stm32_dfu_default + "\nWireless bridge: ESP32\n  - put Tx module into FLASH_ESP mode via OLED Actions page\n",
+            'wireless' : { 'chipset' : 'esp32', 'fname' : 'matek-mtx-db30', 'reset' : 'no_reset', 'baud' : 921600 },
+        },
     },
     'tx-R9' : {
         'description' : description_stm32_stlink_default + "mLRS Flasher currently only supports STLink.\nPlease see docs for more details.\n",

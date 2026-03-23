@@ -441,7 +441,8 @@ function FirmwareFlasherPanel({
     try {
         const files = await api.listWirelessBridgeFirmware({
             version: selectedVersion,
-            chipset: metadata.wireless.chipset
+            chipset: metadata.wireless.chipset,
+            fname: metadata.wireless.fname
         });
         
         if (files.length === 0) {
@@ -462,7 +463,9 @@ function FirmwareFlasherPanel({
           target: BackendTarget.WirelessBridge,
           reset: metadata.wireless.reset,
           baudrate: metadata.wireless.baud,
-          erase: metadata.wireless.erase
+          erase: metadata.wireless.erase,
+          chipset: metadata.wireless.chipset,
+          flashMethod: 'esptool',
         });
     } catch (e) {
         console.error(e);
@@ -1099,6 +1102,25 @@ function FirmwareFlasherPanel({
                 renderDfuRow(
                   isFlashing || !selectedFile || firmwareFiles.length === 0 || isLoadingFiles || !selectedUSBDevice,
                   isFlashing ? 'Flashing in progress' : !selectedFile || firmwareFiles.length === 0 ? 'Select a firmware file first' : isLoadingFiles ? 'Loading firmware files...' : !selectedUSBDevice ? 'Select a USB device first' : undefined
+                )
+              }
+
+              {/* wireless bridge com port for dfu devices with a bridge */}
+              {flashMethod === FlashMethod.DFU && allowWirelessBridge && metadata?.hasWirelessBridge &&
+                renderComPortRow(
+                  isFlashing || !selectedPort,
+                  isFlashing ? 'Flashing in progress' : !selectedPort ? 'Select a COM port first' : undefined,
+                  <div title={isFlashing ? 'Flashing in progress' : !selectedPort ? 'Select a COM port first' : undefined}>
+                    <button
+                      className="btn-primary btn-flash"
+                      onClick={handleFlashWirelessBridge}
+                      disabled={isFlashing || !selectedFile || firmwareFiles.length === 0 || !selectedPort}
+                      aria-label="Flash Wireless Bridge firmware"
+                    >
+                      {isFlashing && flashTarget === BackendTarget.WirelessBridge ? (progress > 0 ? `Flashing... ${progress}%` : 'Flashing...') : 'Flash Wireless Bridge'}
+                    </button>
+                  </div>,
+                  true // hide the main flash button
                 )
               }
 

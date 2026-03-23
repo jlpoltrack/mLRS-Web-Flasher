@@ -163,7 +163,7 @@ export function formatPortName(port: SerialPort): string {
   const pid = info.usbProductId ? info.usbProductId.toString(16).padStart(4, '0').toUpperCase() : '????';
   
   let label = "Serial Device";
-  if (info.usbVendorId === 0x0483 && info.usbProductId === 0x5740) label = "EdgeTX/OpenTX";
+  if (info.usbVendorId === 0x0483 && info.usbProductId === 0x5740) label = "STM32 VCP";
   else if (info.usbVendorId === 0x0483 && info.usbProductId === 0x374E) label = "ST-Link";
   else if (info.usbVendorId === 0x1209) label = "ArduPilot";
   

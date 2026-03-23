@@ -119,13 +119,19 @@ export const githubApi = {
   },
 
   listDevices: async (type: string): Promise<string[]> => {
-    if (type === 'tx') return Object.keys(g_txModuleExternalDeviceTypeDict).sort();
-    if (type === 'rx') return Object.keys(g_receiverDeviceTypeDict).sort();
-    if (type === 'txint') return Object.keys(g_txModuleInternalDeviceTypeDict).sort();
+    // sort alphabetically, but pin MatekSys to the top
+    const prioritySort = (a: string, b: string) => {
+      if (a === 'MatekSys') return -1;
+      if (b === 'MatekSys') return 1;
+      return a.localeCompare(b);
+    };
+    if (type === 'tx') return Object.keys(g_txModuleExternalDeviceTypeDict).sort(prioritySort);
+    if (type === 'rx') return Object.keys(g_receiverDeviceTypeDict).sort(prioritySort);
+    if (type === 'txint') return Object.keys(g_txModuleInternalDeviceTypeDict).sort(prioritySort);
     return [];
   },
 
-  listWirelessBridgeFirmware: async (options: { version: string, chipset: string }): Promise<FirmwareFile[]> => {
+  listWirelessBridgeFirmware: async (options: { version: string, chipset: string, fname?: string }): Promise<FirmwareFile[]> => {
     // Wireless bridge firmware is always pulled from main branch, as it's not versioned with releases
     const cacheKey = `firmware-main`; 
     let tree: GitHubTreeItem[] = [];
@@ -142,8 +148,8 @@ export const githubApi = {
         setCache(cacheKey, tree);
       }
 
-      // Files are named mlrs-wireless-bridge-<chipset>.ino.bin (e.g. mlrs-wireless-bridge-esp8266.ino.bin)
-      const targetPrefix = `mlrs-wireless-bridge-${options.chipset}`;
+      // use device-specific fname when provided, otherwise fall back to chipset
+      const targetPrefix = `mlrs-wireless-bridge-${options.fname || options.chipset}`;
 
       return tree
         .filter((item) => {
@@ -151,7 +157,10 @@ export const githubApi = {
           if (!item.path.includes('firmware/wirelessbridge/')) return false;
           
           const filename = item.path.split('/').pop() || '';
-          return filename.startsWith(targetPrefix);
+          if (!filename.startsWith(targetPrefix)) return false;
+          // ensure prefix matches a full segment (e.g. 'esp32' must not match 'esp32c3')
+          const nextChar = filename[targetPrefix.length];
+          return !nextChar || nextChar === '.' || nextChar === '-';
         })
         .map((item) => {
           const filename = item.path.split('/').pop() || 'firmware.bin';
@@ -166,7 +175,7 @@ export const githubApi = {
           };
         });
     } catch (e) {
-      console.error('Failed to list wireles bridge firmware:', e);
+      console.error('Failed to list wireless bridge firmware:', e);
       return [];
     }
   },
@@ -260,40 +269,13 @@ export const githubApi = {
     if (!deviceDict || Object.keys(deviceDict).length === 0) return null;
 
     const chipset = resolveChipset(deviceDict, targetDict, options.filename);
-    
-    // Override chipset if flashing wireless bridge firmware
-    // Filename format: mlrs-wireless-bridge-<chipset>.ino.bin
-    if (options.filename.includes('mlrs-wireless-bridge-')) {
-        const match = options.filename.match(/mlrs-wireless-bridge-([a-z0-9]+)/);
-        if (match && match[1]) {
-            // override the resolved chipset (which is likely the main MCU)
-            // with the bridge chipset (e.g. esp32c3)
-            return {
-                 chipset: match[1],
-                 flashmethod: 'esptool',
-                 raw_flashmethod: 'esptool',
-                 description: 'Flashing Wireless Bridge',
-                 needsPort: true,
-                 programmer: 'esptool',
-                 hasWirelessBridge: true,
-                 isWirelessBridgeFirmware: true,
-                 wireless: targetDict.wireless
-            };
-        }
-    }
-    
-    // Infer default flash method from chipset if not specified
-    let defaultFlashMethod = 'stlink';
-    if (chipset.includes('esp')) {
-      defaultFlashMethod = 'esptool';
-    }
-    
-    let flashmethod = targetDict.flashmethod || defaultFlashMethod;
+
+    // resolve sub-model overrides first so wireless bridge handling has access
+    let flashmethod = targetDict.flashmethod || (chipset.includes('esp') ? 'esptool' : 'stlink');
     let description = targetDict.description || '';
     let wireless = targetDict.wireless;
     let erase = targetDict.erase;
 
-    // Check for nested overrides in targetDict
     for (const key in targetDict) {
       if (options.filename.includes(key)) {
         const subDict = targetDict[key];
@@ -305,6 +287,27 @@ export const githubApi = {
         }
         break;
       }
+    }
+
+    // override chipset if flashing wireless bridge firmware
+    if (options.filename.includes('mlrs-wireless-bridge-')) {
+        // use the resolved wireless chipset when available, otherwise parse from filename
+        let bridgeChipset = wireless?.chipset;
+        if (!bridgeChipset) {
+            const match = options.filename.match(/mlrs-wireless-bridge-([a-z0-9]+)/);
+            bridgeChipset = match?.[1] || chipset;
+        }
+        return {
+             chipset: bridgeChipset,
+             flashmethod: 'esptool',
+             raw_flashmethod: 'esptool',
+             description: 'Flashing Wireless Bridge',
+             needsPort: true,
+             programmer: 'esptool',
+             hasWirelessBridge: true,
+             isWirelessBridgeFirmware: true,
+             wireless
+        };
     }
 
     let programmer = chipset;
