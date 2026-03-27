@@ -218,7 +218,7 @@ export async function eraseSTM32DFU(
       for (const segment of writableSegments) {
         let addr = segment.start;
         while (addr < segment.end) {
-          await dfuseDevice.dfuseCommand(DFUse.ERASE_SECTOR, addr);
+          await dfuseDevice.dfuseCommand(DFUse.ERASE_SECTOR, addr, 4);
           addr += segment.sectorSize || 1024;
         }
         segIndex++;
