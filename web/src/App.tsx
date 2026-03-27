@@ -10,12 +10,13 @@ import type { LogEntry, Version } from './types';
 
 const DeviceView = lazy(() => import('./components/DeviceView'));
 const LuaScript = lazy(() => import('./components/LuaScript'));
+const Tools = lazy(() => import('./components/Tools'));
 // SwdTest is hidden from navigation but kept for development use
 // const SwdTest = lazy(() => import('./components/SwdTest'));
 
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TargetType | 'lua'>(TargetType.TxExternal);
+  const [activeTab, setActiveTab] = useState<TargetType | 'lua' | 'tools'>(TargetType.TxExternal);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [versions, setVersions] = useState<Version[]>([]);
   const [devices, setDevices] = useState<{ tx: string[], rx: string[], txint: string[] }>({ tx: [], rx: [], txint: [] });
@@ -202,6 +203,10 @@ function App() {
                 <LuaScript 
                   versions={versions}
                 />
+              );
+            case 'tools':
+              return (
+                <Tools addLog={addLog} />
               );
             default:
               return null;
