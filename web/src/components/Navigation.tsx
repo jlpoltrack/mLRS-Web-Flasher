@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, Cpu, FileCode, HardDrive, Wrench } from 'lucide-react';
+import { Radio, Cpu, FileCode, HardDrive, Wrench, SlidersHorizontal } from 'lucide-react';
 import { TargetType } from '../constants';
 import './navigation.css';
 import logo from '../assets/logo.png';
@@ -7,18 +7,22 @@ import logo from '../assets/logo.png';
 // last updated: 2026-03-26
 
 interface NavigationProps {
-  activeTab: TargetType | 'lua' | 'tools';
-  onTabChange: (tabId: TargetType | 'lua' | 'tools') => void;
+  activeTab: TargetType | 'lua' | 'tools' | 'parameters';
+  onTabChange: (tabId: TargetType | 'lua' | 'tools' | 'parameters') => void;
   useLocalFile: boolean;
   onLocalFileToggle: (value: boolean) => void;
 }
 
 function Navigation({ activeTab, onTabChange, useLocalFile, onLocalFileToggle }: NavigationProps) {
-  const tabs: { id: TargetType | 'lua' | 'tools'; label: string; icon: React.ReactNode }[] = [
+  const tabs: { id: TargetType | 'lua' | 'tools' | 'parameters'; label: string; icon: React.ReactNode }[] = [
     { id: TargetType.TxExternal, label: 'Tx Module (External)', icon: <Radio size={20} /> },
     { id: TargetType.Receiver, label: 'Receiver', icon: <Cpu size={20} /> },
     { id: TargetType.TxInternal, label: 'Tx Module (Internal)', icon: <Radio size={20} /> },
     { id: 'lua', label: 'Lua Script', icon: <FileCode size={20} /> },
+  ];
+
+  const utilityTabs: typeof tabs = [
+    { id: 'parameters', label: 'CLI Parameter Editor', icon: <SlidersHorizontal size={20} /> },
     { id: 'tools', label: 'Tools', icon: <Wrench size={20} /> },
   ];
 
@@ -53,14 +57,29 @@ function Navigation({ activeTab, onTabChange, useLocalFile, onLocalFileToggle }:
       </div>
 
       <div className="nav-footer">
-        <button
-          className={`nav-tab local-file-tab ${useLocalFile ? 'active' : ''}`}
-          onClick={() => onLocalFileToggle(!useLocalFile)}
-        >
-          <span className="tab-icon"><HardDrive size={20} /></span>
-          <span className="tab-label">Local File</span>
-          {useLocalFile && <div className="active-glow" />}
-        </button>
+        <div className="nav-footer-section">
+          {utilityTabs.map(tab => (
+            <button
+              key={tab.id}
+              className={`nav-tab ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => onTabChange(tab.id)}
+            >
+              <span className="tab-icon">{tab.icon}</span>
+              <span className="tab-label">{tab.label}</span>
+              {activeTab === tab.id && <div className="active-glow" />}
+            </button>
+          ))}
+        </div>
+        <div className="nav-footer-section">
+          <button
+            className={`nav-tab local-file-tab ${useLocalFile ? 'active' : ''}`}
+            onClick={() => onLocalFileToggle(!useLocalFile)}
+          >
+            <span className="tab-icon"><HardDrive size={20} /></span>
+            <span className="tab-label">Local File</span>
+            {useLocalFile && <div className="active-glow" />}
+          </button>
+        </div>
       </div>
     </nav>
   );
