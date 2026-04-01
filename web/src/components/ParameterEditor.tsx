@@ -25,6 +25,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
   const [hasChanges, setHasChanges] = useState(false);
   const lastSentValue = useRef<{ name: string; value: string } | null>(null);
   const [versionInfo, setVersionInfo] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const optionLoadAbort = useRef(false);
 
   const handleSelectPort = useCallback(async () => {
@@ -89,21 +90,14 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
         if (optionLoadAbort.current) break;
         if (param.unchangeable || param.unavailable) continue;
 
-        if (param.type === 'list') {
-          try {
-            const detailed = await cli.queryParameterOptions(param.name);
-            if (detailed?.options) {
-              setParameters(prev => prev.map(p =>
-                p.name === param.name ? { ...p, options: detailed.options } : p
-              ));
-            }
-          } catch { /* skip */ }
-        } else if (param.type === 'int8') {
+        if (param.type === 'list' || param.type === 'int8') {
           try {
             const detailed = await cli.queryParameterOptions(param.name);
             if (detailed) {
               setParameters(prev => prev.map(p =>
-                p.name === param.name ? { ...p, min: detailed.min, max: detailed.max } : p
+                p.name === param.name
+                  ? { ...p, type: detailed.type, options: detailed.options, min: detailed.min, max: detailed.max, unit: detailed.unit ?? p.unit }
+                  : p
               ));
             }
           } catch { /* skip */ }
@@ -496,12 +490,31 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       {!loading && parameters.length > 0 && (
         <>
           <div className="param-list">
-            {groupParameters(parameters).map(group => (
-              <div key={group.title} className="param-group">
-                <h3 className="param-group-title">{group.title}</h3>
-                {group.params.map(renderParameter)}
-              </div>
-            ))}
+            {groupParameters(parameters).map(group => {
+              const isCollapsed = collapsedGroups.has(group.title);
+              return (
+                <div key={group.title} className="param-group">
+                  <h3
+                    className={`param-group-title ${isCollapsed ? 'collapsed' : ''}`}
+                    onClick={() => setCollapsedGroups(prev => {
+                      const next = new Set(prev);
+                      if (next.has(group.title)) next.delete(group.title);
+                      else next.add(group.title);
+                      return next;
+                    })}
+                  >
+                    <span className="param-group-chevron">{isCollapsed ? '\u25B6' : '\u25BC'}</span>
+                    {group.title}
+                    <span className="param-group-count">{group.params.length}</span>
+                  </h3>
+                  {!isCollapsed && (
+                    <div className="param-group-params">
+                      {group.params.map(renderParameter)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </>
       )}
