@@ -1,14 +1,15 @@
 // MAVLink parameter editor - MAVLink-based parameter management for mLRS devices
 
-import { useState, useCallback, useRef } from 'react';
-import { SERIAL_FILTERS, LogType } from '../constants';
-import { formatPortName } from '../api/hardwareService';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { LogType } from '../constants';
 import { MavLinkConnection } from '../api/mavlinkConnection';
 import * as mavParams from '../api/mavlinkParamService';
 import { fetchParameterMetadata } from '../api/setupListParser';
 import type { SetupParamMetadata } from '../api/setupListParser';
 import type { MavParam } from '../api/mavlinkParamService';
 import type { LogEntry } from '../types';
+import { useSerialPort } from '../hooks/useSerialPort';
+import { groupParameters } from '../utils/parameterGrouping';
 import './panel.css';
 import './parameterEditor.css';
 
@@ -20,8 +21,7 @@ interface MavLinkParameterEditorProps {
 }
 
 function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
-    const [serialPort, setSerialPort] = useState<SerialPort | null>(null);
-    const [portName, setPortName] = useState('');
+    const { port, portName, selectPort } = useSerialPort(addLog);
     const [baudRate, setBaudRate] = useState(DEFAULT_BAUD);
     const [connected, setConnected] = useState(false);
     const [connecting, setConnecting] = useState(false);
@@ -35,22 +35,18 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
     const lastSentValue = useRef<{ name: string; value: string } | null>(null);
     const mavRef = useRef<MavLinkConnection | null>(null);
 
-    const handleSelectPort = useCallback(async () => {
-        if (!navigator.serial) {
-            addLog({ type: LogType.Error, message: 'Web Serial API not supported in this browser.' });
-            return;
-        }
-        try {
-            const port = await navigator.serial.requestPort({ filters: [...SERIAL_FILTERS] });
-            setSerialPort(port);
-            setPortName(formatPortName(port));
-        } catch {
-            // user cancelled
-        }
-    }, [addLog]);
+    // cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (mavRef.current) {
+                mavParams.disconnectMlrs(mavRef.current);
+                mavRef.current = null;
+            }
+        };
+    }, []);
 
     const handleConnect = useCallback(async () => {
-        if (!serialPort) return;
+        if (!port) return;
 
         if (connected) {
             // disconnect
@@ -68,7 +64,7 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
         setConnecting(true);
         try {
             addLog({ type: LogType.Info, message: `Connecting via MAVLink at ${baudRate} baud...` });
-            const mav = await mavParams.connectToMlrs(serialPort, baudRate, (msg) => {
+            const mav = await mavParams.connectToMlrs(port, baudRate, (msg) => {
                 addLog({ type: LogType.Info, message: msg });
             });
             mavRef.current = mav;
@@ -105,7 +101,7 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
             setConnecting(false);
             setLoading(false);
         }
-    }, [serialPort, connected, baudRate, addLog]);
+    }, [port, connected, baudRate, addLog]);
 
     const handleParamChange = useCallback(async (param: MavParam, newValue: string, meta?: SetupParamMetadata) => {
         if (!mavRef.current) return;
@@ -405,32 +401,13 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
         );
     };
 
-    // group parameters by category based on display name or param ID prefix
-    const groupParameters = (params: MavParam[]) => {
-        const groups: { title: string; params: MavParam[] }[] = [];
-        const common: MavParam[] = [];
-        const tx: MavParam[] = [];
-        const rx: MavParam[] = [];
-
-        for (const p of params) {
-            const meta = metadata.get(p.paramId);
-            const name = meta?.displayName || p.paramId;
-
-            if (name.startsWith('Tx ') || p.paramId.startsWith('TX_')) {
-                tx.push(p);
-            } else if (name.startsWith('Rx ') || p.paramId.startsWith('RX_')) {
-                rx.push(p);
-            } else {
-                common.push(p);
-            }
-        }
-
-        if (common.length > 0) groups.push({ title: 'Common', params: common });
-        if (tx.length > 0) groups.push({ title: 'Tx', params: tx });
-        if (rx.length > 0) groups.push({ title: 'Rx', params: rx });
-
-        return groups;
-    };
+    const groups = groupParameters(parameters, p => {
+        const meta = metadata.get(p.paramId);
+        const name = meta?.displayName || p.paramId;
+        if (name.startsWith('Tx ') || p.paramId.startsWith('TX_')) return 'tx';
+        if (name.startsWith('Rx ') || p.paramId.startsWith('RX_')) return 'rx';
+        return 'common';
+    });
 
     return (
         <div className="panel">
@@ -446,12 +423,12 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
                 <div className="form-group port-group span-2">
                     <label>COM Port</label>
                     <div className="port-row">
-                        {serialPort ? (
+                        {port ? (
                             <>
                                 <div className="static-display">{portName}</div>
                                 <button
                                     className="btn-secondary"
-                                    onClick={handleSelectPort}
+                                    onClick={selectPort}
                                     disabled={connected || connecting}
                                 >
                                     Change Port
@@ -462,7 +439,7 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
                                 <div className="static-display">No device selected</div>
                                 <button
                                     className="btn-secondary"
-                                    onClick={handleSelectPort}
+                                    onClick={selectPort}
                                     disabled={connecting}
                                 >
                                     Add Device
@@ -488,7 +465,7 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
                         <button
                             className={connected ? 'btn-disconnect' : 'btn-connect'}
                             onClick={handleConnect}
-                            disabled={!serialPort || connecting}
+                            disabled={!port || connecting}
                         >
                             {connecting ? 'Connecting...' : connected ? 'Disconnect' : 'Connect'}
                         </button>
@@ -528,7 +505,7 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
             {/* parameter list */}
             {!loading && parameters.length > 0 && (
                 <div className="param-list">
-                    {groupParameters(parameters).map(group => {
+                    {groups.map(group => {
                         const isCollapsed = collapsedGroups.has(group.title);
                         return (
                             <div key={group.title} className="param-group">

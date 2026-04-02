@@ -294,6 +294,10 @@ export async function storeParams(
     mav: MavLinkConnection,
     onLog?: (msg: string) => void
 ): Promise<boolean> {
+    // wait for firmware to finish propagating the last param change to the RX
+    onLog?.('Waiting for parameter sync...');
+    await new Promise(r => setTimeout(r, 1000));
+
     onLog?.('Storing parameters...');
     const result = await setParam(mav, 'PSTORE', 1, MAV_PARAM_TYPE_UINT8, onLog);
     if (result) {

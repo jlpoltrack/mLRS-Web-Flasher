@@ -1,186 +1,175 @@
 // CLI service - serial communication with mLRS CLI for parameter management
 
 import { BufferedSerial } from './bufferedSerial';
-import { SERIAL_FILTERS } from '../constants';
-import { formatPortName } from './hardwareService';
 import type { CliParameter } from './cliParser';
 import { parseParameterList, parseParameterOptions } from './cliParser';
 
-export interface CliConnection {
-  serial: BufferedSerial;
-  port: SerialPort;
-}
+export class CliSession {
+  private serial: BufferedSerial | null = null;
+  // command queue ensures only one command runs at a time on the serial link
+  private commandQueue: Promise<void> = Promise.resolve();
 
-let connection: CliConnection | null = null;
+  /**
+   * connect to a serial port for CLI communication
+   */
+  async connect(port: SerialPort, onLog?: (msg: string) => void): Promise<void> {
+    if (this.serial) {
+      await this.disconnect();
+    }
+    const serial = new BufferedSerial(port, onLog);
+    await serial.connect({ baudRate: 115200 });
+    this.serial = serial;
 
-/**
- * prompt the user to select a serial port for CLI communication
- */
-export async function selectPort(): Promise<{ port: SerialPort; name: string } | null> {
-  if (!navigator.serial) {
-    throw new Error('Web Serial API not supported in this browser.');
+    // flush any stale data and send a newline to get a clean prompt
+    await sleep(200);
+    serial.flush();
+    await serial.write(new TextEncoder().encode('\r'));
+    await sleep(200);
+    serial.flush();
   }
-  try {
-    const port = await navigator.serial.requestPort({ filters: [...SERIAL_FILTERS] });
-    return { port, name: formatPortName(port) };
-  } catch {
-    return null; // user cancelled
+
+  /**
+   * disconnect the current CLI session
+   */
+  async disconnect(): Promise<void> {
+    this.commandQueue = Promise.resolve();
+    if (!this.serial) return;
+    try {
+      await this.serial.close();
+    } catch {
+      // ignore close errors
+    }
+    this.serial = null;
   }
-}
 
-/**
- * connect to a serial port for CLI communication
- */
-export async function connect(
-  port: SerialPort,
-  onLog?: (msg: string) => void
-): Promise<void> {
-  if (connection) {
-    await disconnect();
+  /**
+   * send a CLI command and collect the full response
+   * commands are serialized so concurrent callers queue rather than corrupt each other
+   *
+   * @param idleGap ms of silence before considering the response complete.
+   *                use a short value (50ms) for small responses like option queries,
+   *                and a longer value (500ms) for large responses like 'pl'.
+   */
+  sendCommand(command: string, timeout = 5000, idleGap = 500): Promise<string> {
+    if (!this.serial) throw new Error('Not connected');
+
+    return new Promise<string>((resolve, reject) => {
+      this.commandQueue = this.commandQueue.catch(() => {}).then(async () => {
+        try {
+          resolve(await this.executeCommand(command, timeout, idleGap));
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
   }
-  const serial = new BufferedSerial(port, onLog);
-  await serial.connect({ baudRate: 115200 });
-  connection = { serial, port };
 
-  // flush any stale data and send a newline to get a clean prompt
-  await sleep(200);
-  serial.flush();
-  await serial.write(new TextEncoder().encode('\r'));
-  await sleep(200);
-  serial.flush();
-}
+  private async executeCommand(command: string, timeout: number, idleGap: number): Promise<string> {
+    if (!this.serial) throw new Error('Not connected');
+    const serial = this.serial;
 
-/**
- * disconnect the current CLI session
- */
-export async function disconnect(): Promise<void> {
-  if (!connection) return;
-  try {
-    await connection.serial.close();
-  } catch {
-    // ignore close errors
-  }
-  connection = null;
-}
+    // flush any pending data
+    serial.flush();
 
-/**
- * check if currently connected
- */
-export function isConnected(): boolean {
-  return connection !== null;
-}
+    // send the command
+    const encoded = new TextEncoder().encode(command + '\r');
+    await serial.write(encoded);
 
-/**
- * send a CLI command and collect the full response
- * handles echo stripping and chunked output accumulation
- */
-export async function sendCommand(command: string, timeout = 5000): Promise<string> {
-  if (!connection) throw new Error('Not connected');
-  const { serial } = connection;
+    // accumulate response in chunks until no more data arrives
+    // the firmware sends: echo of command, then >\r\n, then the response data
+    const decoder = new TextDecoder();
+    let response = '';
+    const startTime = Date.now();
 
-  // flush any pending data
-  serial.flush();
-
-  // send the command
-  const encoded = new TextEncoder().encode(command + '\r');
-  await serial.write(encoded);
-
-  // accumulate response in chunks until no more data arrives
-  // the firmware sends: echo of command, then >\r\n, then the response data
-  const decoder = new TextDecoder();
-  let response = '';
-  const startTime = Date.now();
-
-  while (Date.now() - startTime < timeout) {
-    const available = serial.bytesAvailable;
-    if (available > 0) {
-      // read all available bytes at once
-      const chunk = await serial.read(available, 200);
-      response += decoder.decode(chunk, { stream: true });
-    } else if (response.length > 0) {
-      // no bytes available - wait a bit to see if more data arrives
-      await sleep(150);
-      if (serial.bytesAvailable === 0) {
-        break; // no more data coming, response is complete
-      }
-    } else {
-      // nothing received yet, wait for first data
-      try {
-        const chunk = await serial.read(1, 200);
+    while (Date.now() - startTime < timeout) {
+      const available = serial.bytesAvailable;
+      if (available > 0) {
+        // read all available bytes at once
+        const chunk = await serial.read(available, 200);
         response += decoder.decode(chunk, { stream: true });
-      } catch {
-        // read timeout, keep waiting until overall timeout
+      } else if (response.length > 0) {
+        // no bytes available - wait to see if more data arrives
+        await sleep(idleGap);
+        if (serial.bytesAvailable === 0) {
+          break; // no more data coming, response is complete
+        }
+      } else {
+        // nothing received yet, wait for first data
+        try {
+          const chunk = await serial.read(1, 200);
+          response += decoder.decode(chunk, { stream: true });
+        } catch {
+          // read timeout, keep waiting until overall timeout
+        }
       }
     }
-  }
 
-  // flush decoder to handle any incomplete UTF-8 sequences
-  response += decoder.decode(new Uint8Array(), { stream: false });
+    // flush decoder to handle any incomplete UTF-8 sequences
+    response += decoder.decode(new Uint8Array(), { stream: false });
 
-  // strip the echoed command from the beginning
-  // the firmware echoes what we typed, then outputs >\r\n before the response
-  // anchor search to the start of the response (within the echo region only)
-  const echoEnd = command.length + 20; // echo + some margin for \r\n and >
-  const searchRegion = response.substring(0, Math.min(echoEnd, response.length));
-  const promptIdx = searchRegion.indexOf('>\r\n');
-  if (promptIdx !== -1) {
-    response = response.substring(promptIdx + 3);
-  } else {
-    // fallback: strip the echoed command if found at the start
-    const cmdIdx = searchRegion.indexOf(command);
-    if (cmdIdx !== -1) {
-      response = response.substring(cmdIdx + command.length);
+    // strip the echoed command from the beginning
+    // the firmware echoes what we typed, then outputs >\r\n before the response
+    // anchor search to the start of the response (within the echo region only)
+    const echoEnd = command.length + 20; // echo + some margin for \r\n and >
+    const searchRegion = response.substring(0, Math.min(echoEnd, response.length));
+    const promptIdx = searchRegion.indexOf('>\r\n');
+    if (promptIdx !== -1) {
+      response = response.substring(promptIdx + 3);
+    } else {
+      // fallback: strip the echoed command if found at the start
+      const cmdIdx = searchRegion.indexOf(command);
+      if (cmdIdx !== -1) {
+        response = response.substring(cmdIdx + command.length);
+      }
     }
+
+    return response.trim();
   }
 
-  return response.trim();
-}
+  /**
+   * send 'pl' to list all parameters
+   */
+  async listParameters(): Promise<CliParameter[]> {
+    const response = await this.sendCommand('pl', 8000);
+    return parseParameterList(response);
+  }
 
-/**
- * send 'pl' to list all parameters
- */
-export async function listParameters(): Promise<CliParameter[]> {
-  const response = await sendCommand('pl', 8000);
-  return parseParameterList(response);
-}
+  /**
+   * query available options for a single parameter
+   */
+  async queryParameterOptions(paramName: string): Promise<CliParameter | null> {
+    const safeName = paramName.replace(/ /g, '_');
+    const response = await this.sendCommand(`p ${safeName} = ?`, 3000, 50);
+    return parseParameterOptions(response, paramName);
+  }
 
-/**
- * query available options for a single parameter
- */
-export async function queryParameterOptions(
-  paramName: string
-): Promise<CliParameter | null> {
-  const safeName = paramName.replace(/ /g, '_');
-  const response = await sendCommand(`p ${safeName} = ?`, 3000);
-  return parseParameterOptions(response, paramName);
-}
+  /**
+   * set a parameter value
+   */
+  async setParameter(
+    paramName: string,
+    value: string
+  ): Promise<{ success: boolean; response: string }> {
+    const safeName = paramName.replace(/ /g, '_');
+    const response = await this.sendCommand(`p ${safeName} = ${value}`, 3000, 50);
 
-/**
- * set a parameter value
- */
-export async function setParameter(
-  paramName: string,
-  value: string
-): Promise<{ success: boolean; response: string }> {
-  const safeName = paramName.replace(/ /g, '_');
-  const response = await sendCommand(`p ${safeName} = ${value}`, 3000);
+    const hasError = response.includes('err:');
+    return { success: !hasError, response };
+  }
 
-  const hasError = response.includes('err:');
-  return { success: !hasError, response };
-}
+  /**
+   * store parameters to EEPROM
+   */
+  async storeParameters(): Promise<string> {
+    return this.sendCommand('pstore', 3000);
+  }
 
-/**
- * store parameters to EEPROM
- */
-export async function storeParameters(): Promise<string> {
-  return sendCommand('pstore', 3000);
-}
-
-/**
- * get device version info
- */
-export async function getVersion(): Promise<string> {
-  return sendCommand('v', 3000);
+  /**
+   * get device version info
+   */
+  async getVersion(): Promise<string> {
+    return this.sendCommand('v', 3000);
+  }
 }
 
 function sleep(ms: number): Promise<void> {

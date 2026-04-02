@@ -142,7 +142,7 @@ export class MavLinkConnection {
     }
 
     // hook up pipeline
-    initPipeline() {
+    private initPipeline() {
         // wiring: splitter -> parser -> packet listeners
         this.splitter.on('data', (data: Uint8Array) => {
             this.parser.write(data);
@@ -155,8 +155,9 @@ export class MavLinkConnection {
                 (packet as any).payload = packet.protocol.data(packet.payload, clazz);
             }
 
-            // push to queue
+            // push to queue (cap size to prevent memory leaks from idle connections)
             this.packetQueue.push(packet);
+            if (this.packetQueue.length > 200) this.packetQueue.shift();
         });
     }
 

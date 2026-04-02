@@ -1,11 +1,12 @@
 // parameter editor - CLI-based parameter management for mLRS devices
 
-import { useState, useCallback, useRef } from 'react';
-import { SERIAL_FILTERS, LogType } from '../constants';
-import { formatPortName } from '../api/hardwareService';
-import * as cli from '../api/cliService';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { LogType } from '../constants';
+import { CliSession } from '../api/cliService';
 import type { CliParameter } from '../api/cliParser';
 import type { LogEntry } from '../types';
+import { useSerialPort } from '../hooks/useSerialPort';
+import { groupParameters } from '../utils/parameterGrouping';
 import './panel.css';
 import './parameterEditor.css';
 
@@ -14,8 +15,7 @@ interface ParameterEditorProps {
 }
 
 function ParameterEditor({ addLog }: ParameterEditorProps) {
-  const [serialPort, setSerialPort] = useState<SerialPort | null>(null);
-  const [portName, setPortName] = useState('');
+  const { port, portName, selectPort } = useSerialPort(addLog);
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [parameters, setParameters] = useState<CliParameter[]>([]);
@@ -27,28 +27,24 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
   const [versionInfo, setVersionInfo] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const optionLoadAbort = useRef(false);
+  const cliRef = useRef<CliSession | null>(null);
 
-  const handleSelectPort = useCallback(async () => {
-    if (!navigator.serial) {
-      addLog({ type: LogType.Error, message: 'Web Serial API not supported in this browser.' });
-      return;
-    }
-    try {
-      const port = await navigator.serial.requestPort({ filters: [...SERIAL_FILTERS] });
-      setSerialPort(port);
-      setPortName(formatPortName(port));
-    } catch {
-      // user cancelled
-    }
-  }, [addLog]);
+  // cleanup on unmount
+  useEffect(() => {
+    return () => {
+      optionLoadAbort.current = true;
+      cliRef.current?.disconnect();
+    };
+  }, []);
 
   const handleConnect = useCallback(async () => {
-    if (!serialPort) return;
+    if (!port) return;
 
     if (connected) {
       // disconnect
       optionLoadAbort.current = true;
-      await cli.disconnect();
+      await cliRef.current?.disconnect();
+      cliRef.current = null;
       setConnected(false);
       setParameters([]);
       setVersionInfo('');
@@ -61,15 +57,17 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
     optionLoadAbort.current = false;
     try {
       addLog({ type: LogType.Info, message: 'Connecting to CLI...' });
-      await cli.connect(serialPort, (msg) => {
+      const session = new CliSession();
+      await session.connect(port, (msg) => {
         addLog({ type: LogType.Info, message: msg });
       });
+      cliRef.current = session;
       setConnected(true);
       addLog({ type: LogType.Success, message: 'Connected to CLI' });
 
       // get version info
       try {
-        const version = await cli.getVersion();
+        const version = await session.getVersion();
         setVersionInfo(version);
         addLog({ type: LogType.Info, message: version });
       } catch {
@@ -79,7 +77,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       // load parameters - show immediately, then fetch options progressively
       setLoading(true);
       addLog({ type: LogType.Info, message: 'Reading parameters...' });
-      const params = await cli.listParameters();
+      const params = await session.listParameters();
       setParameters(params);
       setLoading(false);
       addLog({ type: LogType.Success, message: `Loaded ${params.length} parameters` });
@@ -92,7 +90,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
 
         if (param.type === 'list' || param.type === 'int8') {
           try {
-            const detailed = await cli.queryParameterOptions(param.name);
+            const detailed = await session.queryParameterOptions(param.name);
             if (detailed) {
               setParameters(prev => prev.map(p =>
                 p.name === param.name
@@ -110,20 +108,21 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       addLog({ type: LogType.Error, message: `Connection failed: ${msg}` });
+      cliRef.current = null;
       setConnected(false);
     } finally {
       setConnecting(false);
       setLoading(false);
     }
-  }, [serialPort, connected, addLog]);
+  }, [port, connected, addLog]);
 
   const [loadingOptions, setLoadingOptions] = useState<string | null>(null);
 
   const handleLoadOptions = useCallback(async (param: CliParameter) => {
-    if (param.options || param.type !== 'list' || !connected) return;
+    if (param.options || param.type !== 'list' || !connected || !cliRef.current) return;
     setLoadingOptions(param.name);
     try {
-      const detailed = await cli.queryParameterOptions(param.name);
+      const detailed = await cliRef.current.queryParameterOptions(param.name);
       if (detailed?.options) {
         setParameters(prev => prev.map(p =>
           p.name === param.name ? { ...p, options: detailed.options } : p
@@ -137,9 +136,9 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
   }, [connected]);
 
   const handleLoadInt8Range = useCallback(async (param: CliParameter) => {
-    if (param.min !== undefined || param.type !== 'int8' || !connected) return;
+    if (param.min !== undefined || param.type !== 'int8' || !connected || !cliRef.current) return;
     try {
-      const detailed = await cli.queryParameterOptions(param.name);
+      const detailed = await cliRef.current.queryParameterOptions(param.name);
       if (detailed) {
         setParameters(prev => prev.map(p =>
           p.name === param.name ? { ...p, min: detailed.min, max: detailed.max } : p
@@ -151,6 +150,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
   }, [connected]);
 
   const handleParamChange = useCallback(async (param: CliParameter, newValue: string) => {
+    if (!cliRef.current) return;
     // prevent double-send when Enter triggers both onKeyDown and onBlur
     if (lastSentValue.current?.name === param.name && lastSentValue.current?.value === newValue) {
       return;
@@ -158,7 +158,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
     lastSentValue.current = { name: param.name, value: newValue };
     setSettingParam(param.name);
     try {
-      const result = await cli.setParameter(param.name, newValue);
+      const result = await cliRef.current.setParameter(param.name, newValue);
       if (result.success) {
         // update local state
         setParameters(prev => prev.map(p => {
@@ -186,16 +186,18 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
   }, [addLog]);
 
   const handleStore = useCallback(async () => {
+    if (!cliRef.current) return;
     setSaving(true);
     try {
       addLog({ type: LogType.Info, message: 'Storing parameters...' });
-      await cli.storeParameters();
+      await cliRef.current.storeParameters();
       addLog({ type: LogType.Success, message: 'Parameters stored. Devices are rebooting...' });
       setHasChanges(false);
       // pstore triggers a reboot on both Tx and Rx
       // clean up the connection since the device will disconnect
       optionLoadAbort.current = true;
-      await cli.disconnect();
+      await cliRef.current.disconnect();
+      cliRef.current = null;
       setConnected(false);
       setParameters([]);
       setVersionInfo('');
@@ -209,11 +211,11 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
   }, [addLog]);
 
   const handleReload = useCallback(async () => {
-    if (!connected) return;
+    if (!connected || !cliRef.current) return;
     setLoading(true);
     try {
       addLog({ type: LogType.Info, message: 'Reloading parameters...' });
-      const params = await cli.listParameters();
+      const params = await cliRef.current.listParameters();
 
       // merge with existing parameters to preserve options/ranges from initial load
       setParameters(prev => {
@@ -387,29 +389,11 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
     );
   };
 
-  // group parameters by category based on name prefix
-  const groupParameters = (params: CliParameter[]) => {
-    const groups: { title: string; params: CliParameter[] }[] = [];
-    const common: CliParameter[] = [];
-    const tx: CliParameter[] = [];
-    const rx: CliParameter[] = [];
-
-    for (const p of params) {
-      if (p.name.startsWith('Tx ')) {
-        tx.push(p);
-      } else if (p.name.startsWith('Rx ')) {
-        rx.push(p);
-      } else {
-        common.push(p);
-      }
-    }
-
-    if (common.length > 0) groups.push({ title: 'Common', params: common });
-    if (tx.length > 0) groups.push({ title: 'Tx', params: tx });
-    if (rx.length > 0) groups.push({ title: 'Rx', params: rx });
-
-    return groups;
-  };
+  const groups = groupParameters(parameters, p => {
+    if (p.name.startsWith('Tx ')) return 'tx';
+    if (p.name.startsWith('Rx ')) return 'rx';
+    return 'common';
+  });
 
   return (
     <div className="panel">
@@ -424,12 +408,12 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
         <div className="form-group port-group full-width">
           <label>COM Port</label>
           <div className="port-row">
-            {serialPort ? (
+            {port ? (
               <>
                 <div className="static-display">{portName}</div>
                 <button
                   className="btn-secondary"
-                  onClick={handleSelectPort}
+                  onClick={selectPort}
                   disabled={connected || connecting}
                 >
                   Change Port
@@ -440,7 +424,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
                 <div className="static-display">No device selected</div>
                 <button
                   className="btn-secondary"
-                  onClick={handleSelectPort}
+                  onClick={selectPort}
                   disabled={connecting}
                 >
                   Add Device
@@ -450,7 +434,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
             <button
               className={connected ? 'btn-disconnect' : 'btn-connect'}
               onClick={handleConnect}
-              disabled={!serialPort || connecting}
+              disabled={!port || connecting}
             >
               {connecting ? 'Connecting...' : connected ? 'Disconnect' : 'Connect'}
             </button>
@@ -500,7 +484,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       {!loading && parameters.length > 0 && (
         <>
           <div className="param-list">
-            {groupParameters(parameters).map(group => {
+            {groups.map(group => {
               const isCollapsed = collapsedGroups.has(group.title);
               return (
                 <div key={group.title} className="param-group">
