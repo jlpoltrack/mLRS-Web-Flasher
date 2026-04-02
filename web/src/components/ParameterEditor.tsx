@@ -189,9 +189,17 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
     setSaving(true);
     try {
       addLog({ type: LogType.Info, message: 'Storing parameters...' });
-      const response = await cli.storeParameters();
-      addLog({ type: LogType.Success, message: response || 'Parameters stored' });
+      await cli.storeParameters();
+      addLog({ type: LogType.Success, message: 'Parameters stored. Devices are rebooting...' });
       setHasChanges(false);
+      // pstore triggers a reboot on both Tx and Rx
+      // clean up the connection since the device will disconnect
+      optionLoadAbort.current = true;
+      await cli.disconnect();
+      setConnected(false);
+      setParameters([]);
+      setVersionInfo('');
+      addLog({ type: LogType.Info, message: 'Disconnected. Reconnect after devices have rebooted.' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       addLog({ type: LogType.Error, message: `Store failed: ${msg}` });
@@ -446,27 +454,29 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
             >
               {connecting ? 'Connecting...' : connected ? 'Disconnect' : 'Connect'}
             </button>
-            {connected && (
-              <>
-                <button
-                  className="btn-secondary"
-                  onClick={handleReload}
-                  disabled={!connected || loading || saving}
-                >
-                  Reload
-                </button>
-                <button
-                  className="btn-store"
-                  onClick={handleStore}
-                  disabled={!connected || saving || loading}
-                >
-                  {saving ? 'Storing...' : 'Store'}
-                </button>
-              </>
-            )}
-            {hasChanges && <span className="unsaved-indicator">Unsaved</span>}
           </div>
         </div>
+        {connected && (
+          <div className="form-group port-group full-width">
+            <div className="port-row">
+              <button
+                className="btn-secondary"
+                onClick={handleReload}
+                disabled={!connected || loading || saving}
+              >
+                Reload
+              </button>
+              <button
+                className="btn-store"
+                onClick={handleStore}
+                disabled={!connected || saving || loading}
+              >
+                {saving ? 'Storing...' : 'Store'}
+              </button>
+              {hasChanges && <span className="unsaved-indicator">Unsaved</span>}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* version info */}

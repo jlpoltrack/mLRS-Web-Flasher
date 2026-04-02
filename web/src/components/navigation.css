@@ -126,7 +126,7 @@
 }
 
 .nav-footer-section {
-  padding-top: 12px;
+  padding: 8px 0;
   border-top: 1px solid var(--glass-border);
 }
 

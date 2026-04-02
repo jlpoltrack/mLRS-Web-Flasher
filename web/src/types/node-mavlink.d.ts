@@ -66,6 +66,11 @@ declare module 'node-mavlink' {
             paramIndex: number;
         }
 
+        export class ParamRequestList extends MavLinkData {
+            targetSystem: number;
+            targetComponent: number;
+        }
+
         export class ParamSet extends MavLinkData {
             targetSystem: number;
             targetComponent: number;
