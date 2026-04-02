@@ -120,9 +120,13 @@
   border-radius: 2px;
 }
 
-/* footer toggle pinned to bottom of rail */
+/* footer pinned to bottom of rail */
 .nav-footer {
-  padding: 12px 12px 16px;
+  padding: 0 12px 16px;
+}
+
+.nav-footer-section {
+  padding: 8px 0;
   border-top: 1px solid var(--glass-border);
 }
 
