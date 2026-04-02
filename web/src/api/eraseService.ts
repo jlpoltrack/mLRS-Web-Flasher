@@ -234,7 +234,9 @@ export async function eraseSTM32DFU(
 
     try { await dfu.close(); } catch (_) { /* ignore */ }
   } catch (err) {
-    sm.transition('ERROR', `STM32 DFU erase failed: ${err instanceof Error ? err.message : String(err)}`);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    sm.transition('ERROR', `STM32 DFU erase failed: ${errMsg}`);
+    sm.logLinuxUsbHint(errMsg);
     throw err;
   }
 }
@@ -278,7 +280,9 @@ export async function eraseSTM32SWD(
 
     sm.transition('DONE', 'STM32 SWD chip erase complete!');
   } catch (err) {
-    sm.transition('ERROR', `STM32 SWD erase failed: ${err instanceof Error ? err.message : String(err)}`);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    sm.transition('ERROR', `STM32 SWD erase failed: ${errMsg}`);
+    sm.logLinuxUsbHint(errMsg);
     throw err;
   } finally {
     try { await stlink.disconnect(); } catch (_) { /* ignore */ }

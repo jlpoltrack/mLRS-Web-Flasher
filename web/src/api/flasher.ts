@@ -574,7 +574,9 @@ async function flashSTM32SWD(
       sm.transition('DONE', "ST-Link Flash Complete! Device reset.");
 
   } catch (err) {
-      sm.transition('ERROR', `Error during ST-Link flash: ${err instanceof Error ? err.message : String(err)}`);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      sm.transition('ERROR', `Error during ST-Link flash: ${errMsg}`);
+      sm.logLinuxUsbHint(errMsg);
       throw err;
   } finally {
       try {
@@ -811,7 +813,9 @@ async function flashSTM32DFU(
     } catch (e) { /* ignore */ }
     
   } catch (err) {
-    sm.transition('ERROR', `Error during STM32 DFU flash: ${err instanceof Error ? err.message : String(err)}`);
+    const errMsg = err instanceof Error ? err.message : String(err);
+    sm.transition('ERROR', `Error during STM32 DFU flash: ${errMsg}`);
+    sm.logLinuxUsbHint(errMsg);
     throw err;
   }
 }

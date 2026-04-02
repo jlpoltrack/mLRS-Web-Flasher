@@ -91,6 +91,21 @@ export class FlasherStateMachine {
       this.onProgress?.(percent, status);
   }
 
+  /**
+   * If the error looks like a Linux USB permission issue, log udev fix steps.
+   */
+  logLinuxUsbHint(errMsg: string) {
+    if (!errMsg.includes('Access denied') || !/Linux/.test(navigator.userAgent)) return;
+
+    this.log(
+      'On Linux, USB access may require a udev rule. To fix this:\n' +
+      '  1. Create /etc/udev/rules.d/99-stm32.rules with:\n' +
+      '     SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", MODE="0666"\n' +
+      '  2. Run: sudo udevadm control --reload-rules && sudo udevadm trigger\n' +
+      '  3. Unplug and replug the board, then retry.'
+    );
+  }
+
   private readableState(state: FlasherState): string {
       switch (state) {
           case 'CONNECTING': return 'Connecting';
