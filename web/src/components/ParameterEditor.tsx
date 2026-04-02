@@ -292,6 +292,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
           <div className="select-wrapper">
             <select
               value={0}
+              onChange={() => {}}
               onFocus={() => handleLoadOptions(param)}
               disabled={isDisabled || isLoadingOpts}
             >

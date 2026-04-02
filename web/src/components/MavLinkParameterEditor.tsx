@@ -415,7 +415,7 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
 
             <div className="info-box">
                 Connect to a Tx module via MAVLink to read and edit device parameters.
-                The Tx module must have MAVLink Component enabled and a receiver must be connected.
+                The Tx module must have MAVLink Component enabled.
             </div>
 
             {/* connection section */}
