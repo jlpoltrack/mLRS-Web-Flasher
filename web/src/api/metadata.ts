@@ -30,8 +30,8 @@ export const g_txModuleInternalDeviceTypeDict: Record<string, any> = {
 
 const description_stm32_dfu_default = "Flash method: DFU\n  - connect to USB while pressing the button\n";
 const description_stm32_stlink_default = "Flash method: STLink\n  - connect SWD pads to STLink\n";
-const description_stm32_uart_default = "Flash method: UART\n  - connect Tx,Rx pads to USB-TTL adapter\n  - select COM port\n  - power up receiver while pressing the button\n";
-const description_esp_esptool_uart_default = "Flash method: esptool\n  - connect Tx,Rx pads to USB-TTL adapter\n  - select COM port\n  - power up receiver while pressing the button\n";
+const description_stm32_uart_default = "Flash method: UART\n  - connect Tx,Rx pads to USB-TTL adapter\n  - select serial port\n  - power up receiver while pressing the button\n";
+const description_esp_esptool_uart_default = "Flash method: esptool\n  - connect Tx,Rx pads to USB-TTL adapter\n  - select serial port\n  - power up receiver while pressing the button\n";
 const description_ardupilot_passthrough_default = "In addition flashing via ArduPilot passthrough is supported:\n  - follow the instructions in the console\n";
 const description_radio_passthru_default = "  - with radio powered up, connect to USB of your radio\n  - select 'USB Serial (VCP)'\n";
 
@@ -59,7 +59,7 @@ export const g_targetDict: Record<string, any> = {
     'tx-betafpv' : {
         'description' : "Not available (download failed)\n",
         'tx-betafpv-micro-1w-2400' : {
-            'description' : "Flash method: connect to USB (select COM port)\n" +
+            'description' : "Flash method: connect to USB (select serial port)\n" +
                 "\nWireless bridge: ESP8285\n" +
                 "Dip switches need to be set as follow:\n" +
                 "  1,2 on:    update firmware on main ESP32, USB connected to UARTO\n" +
@@ -71,7 +71,7 @@ export const g_targetDict: Record<string, any> = {
     'tx-radiomaster' : {
         'description' : "Not available (download failed)\n",
         'tx-radiomaster-bandit' : {
-            'description' : "Flash method: connect to USB (select COM port)\n" +
+            'description' : "Flash method: connect to USB (select serial port)\n" +
                 "\nWireless bridge: ESP8285\n" +
                 "For flashing the wireless bridge, ensure the following settings are stored:\n" +
                 "  - 'Tx Ser Dest' = serial2\n" +
@@ -81,7 +81,7 @@ export const g_targetDict: Record<string, any> = {
             'wireless' : { 'chipset' : 'esp8266', 'reset' : 'no dtr', 'baud' : 115200 },
         },
         'tx-radiomaster-nomad' : {
-            'description' : "Flash method: connect to USB (select COM port)\n" +
+            'description' : "Flash method: connect to USB (select serial port)\n" +
                 "\nWireless bridge: ESP32C3\n" +
                 "For flashing the wireless bridge, ensure the following settings are stored:\n" +
                 "  - 'Tx Ser Dest' = serial2\n" +
@@ -91,7 +91,7 @@ export const g_targetDict: Record<string, any> = {
             'wireless' : { 'chipset' : 'esp32c3', 'reset' : 'no dtr', 'baud' : 115200, 'erase' : 'full_erase' },
         },
         'tx-radiomaster-ranger' : {
-            'description' : "Flash method: connect to USB (select COM port)\n" +
+            'description' : "Flash method: connect to USB (select serial port)\n" +
                 "\nWireless bridge: ESP8285\n" +
                 "For flashing the wireless bridge, ensure the following settings are stored:\n" +
                 "  - 'Tx Ser Dest' = serial2\n" +

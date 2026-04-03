@@ -390,7 +390,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       {/* connection section */}
       <div className="form-grid">
         <div className="form-group port-group full-width">
-          <label>COM Port</label>
+          <label>Serial Port</label>
           <div className="port-row">
             {port ? (
               <>

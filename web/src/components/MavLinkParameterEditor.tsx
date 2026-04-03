@@ -421,7 +421,7 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
             {/* connection section */}
             <div className="form-grid">
                 <div className="form-group port-group span-2">
-                    <label>COM Port</label>
+                    <label>Serial Port</label>
                     <div className="port-row">
                         {port ? (
                             <>

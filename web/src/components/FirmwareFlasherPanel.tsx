@@ -338,7 +338,7 @@ function FirmwareFlasherPanel({
     const needsPort = (flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough || metadata?.needsPort);
     
     if (needsPort && !selectedPort) {
-      setError('Please select a COM port first.');
+      setError('Please select a serial port first.');
       return;
     }
 
@@ -538,14 +538,14 @@ function FirmwareFlasherPanel({
   const flashBackendTarget = targetType === TargetType.Receiver ? BackendTarget.Receiver : BackendTarget.TxModule;
 
   // shared device-selector row helpers; closures capture component state
-  const renderComPortRow = (
+  const renderSerialPortRow = (
     flashDisabled: boolean,
     flashTooltip: string | undefined,
     extraButtons?: React.ReactNode,
     hideFlashButton = false
   ) => (
     <div className="form-group port-group full-width">
-      <label>COM Port</label>
+      <label>Serial Port</label>
       <div className="port-row">
         <div className="select-wrapper">
           <select
@@ -841,9 +841,9 @@ function FirmwareFlasherPanel({
 
       {/* device selectors */}
       {(flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough) &&
-        renderComPortRow(
+        renderSerialPortRow(
           isFlashing || !localFileData || !selectedPort,
-          !localFile ? 'Select a local file first' : !selectedPort ? 'Select a COM port first' : isFlashing ? 'Flashing in progress' : undefined
+          !localFile ? 'Select a local file first' : !selectedPort ? 'Select a serial port first' : isFlashing ? 'Flashing in progress' : undefined
         )
       }
 
@@ -898,12 +898,12 @@ function FirmwareFlasherPanel({
         </>
       )}
 
-      {/* bridge serial port + flash button — reuses shared com port helper */}
+      {/* bridge serial port + flash button — reuses shared serial port helper */}
       {allowWirelessBridge && (
-        renderComPortRow(
+        renderSerialPortRow(
           isFlashing || !localBridgeFileData || !selectedPort,
-          !localBridgeFile ? 'Select a wireless bridge file first' : !selectedPort ? 'Select a COM port first' : isFlashing ? 'Flashing in progress' : undefined,
-          <div title={!localBridgeFile ? 'Select a wireless bridge file first' : !selectedPort ? 'Select a COM port first' : isFlashing ? 'Flashing in progress' : undefined}>
+          !localBridgeFile ? 'Select a wireless bridge file first' : !selectedPort ? 'Select a serial port first' : isFlashing ? 'Flashing in progress' : undefined,
+          <div title={!localBridgeFile ? 'Select a wireless bridge file first' : !selectedPort ? 'Select a serial port first' : isFlashing ? 'Flashing in progress' : undefined}>
             <button
               className="btn-primary btn-flash"
               onClick={handleFlashWirelessBridge}
@@ -1077,13 +1077,13 @@ function FirmwareFlasherPanel({
                 </>
               )}
 
-              {/* com port selection — shown for serial-based methods; r9 only shows port for passthrough */}
+              {/* serial port selection — shown for serial-based methods; r9 only shows port for passthrough */}
               {(flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough) && (!isFrSkyR9 || (isFrSkyR9 && (flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough))) &&
-                renderComPortRow(
+                renderSerialPortRow(
                   isFlashing || !selectedFile || firmwareFiles.length === 0 || isLoadingFiles || !selectedPort,
-                  isFlashing ? 'Flashing in progress' : !selectedFile || firmwareFiles.length === 0 ? 'Select a firmware file first' : isLoadingFiles ? 'Loading firmware files...' : !selectedPort ? 'Select a COM port first' : undefined,
+                  isFlashing ? 'Flashing in progress' : !selectedFile || firmwareFiles.length === 0 ? 'Select a firmware file first' : isLoadingFiles ? 'Loading firmware files...' : !selectedPort ? 'Select a serial port first' : undefined,
                   allowWirelessBridge && metadata?.hasWirelessBridge && (
-                    <div title={isFlashing ? 'Flashing in progress' : !selectedFile ? 'Select a firmware file first' : !selectedPort ? 'Select a COM port first' : undefined}>
+                    <div title={isFlashing ? 'Flashing in progress' : !selectedFile ? 'Select a firmware file first' : !selectedPort ? 'Select a serial port first' : undefined}>
                       <button
                         className="btn-primary btn-flash"
                         onClick={handleFlashWirelessBridge}
@@ -1105,12 +1105,12 @@ function FirmwareFlasherPanel({
                 )
               }
 
-              {/* wireless bridge com port for dfu devices with a bridge */}
+              {/* wireless bridge serial port for dfu devices with a bridge */}
               {flashMethod === FlashMethod.DFU && allowWirelessBridge && metadata?.hasWirelessBridge &&
-                renderComPortRow(
+                renderSerialPortRow(
                   isFlashing || !selectedPort,
-                  isFlashing ? 'Flashing in progress' : !selectedPort ? 'Select a COM port first' : undefined,
-                  <div title={isFlashing ? 'Flashing in progress' : !selectedPort ? 'Select a COM port first' : undefined}>
+                  isFlashing ? 'Flashing in progress' : !selectedPort ? 'Select a serial port first' : undefined,
+                  <div title={isFlashing ? 'Flashing in progress' : !selectedPort ? 'Select a serial port first' : undefined}>
                     <button
                       className="btn-primary btn-flash"
                       onClick={handleFlashWirelessBridge}
