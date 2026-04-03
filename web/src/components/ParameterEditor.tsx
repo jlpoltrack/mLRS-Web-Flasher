@@ -37,6 +37,40 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
     };
   }, []);
 
+  const loadAllParameters = useCallback(async (session: CliSession) => {
+    setLoading(true);
+    addLog({ type: LogType.Info, message: 'Reading parameters...' });
+    const params = await session.listParameters();
+    setParameters(params);
+    setLoading(false);
+    setHasChanges(false);
+    addLog({ type: LogType.Success, message: `Loaded ${params.length} parameters` });
+
+    // progressively load options for each editable parameter
+    addLog({ type: LogType.Info, message: 'Loading parameter options...' });
+    for (const param of params) {
+      if (optionLoadAbort.current) break;
+      if (param.unchangeable || param.unavailable) continue;
+
+      if (param.type === 'list' || param.type === 'int8') {
+        try {
+          const detailed = await session.queryParameterOptions(param.name);
+          if (detailed) {
+            setParameters(prev => prev.map(p =>
+              p.name === param.name
+                ? { ...p, type: detailed.type, options: detailed.options, min: detailed.min, max: detailed.max, unit: detailed.unit ?? p.unit }
+                : p
+            ));
+          }
+        } catch { /* skip */ }
+      }
+    }
+
+    if (!optionLoadAbort.current) {
+      addLog({ type: LogType.Success, message: 'All parameter options loaded' });
+    }
+  }, [addLog]);
+
   const handleConnect = useCallback(async () => {
     if (!port) return;
 
@@ -74,37 +108,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
         // version query is optional
       }
 
-      // load parameters - show immediately, then fetch options progressively
-      setLoading(true);
-      addLog({ type: LogType.Info, message: 'Reading parameters...' });
-      const params = await session.listParameters();
-      setParameters(params);
-      setLoading(false);
-      addLog({ type: LogType.Success, message: `Loaded ${params.length} parameters` });
-
-      // progressively load options for each editable parameter
-      addLog({ type: LogType.Info, message: 'Loading parameter options...' });
-      for (const param of params) {
-        if (optionLoadAbort.current) break;
-        if (param.unchangeable || param.unavailable) continue;
-
-        if (param.type === 'list' || param.type === 'int8') {
-          try {
-            const detailed = await session.queryParameterOptions(param.name);
-            if (detailed) {
-              setParameters(prev => prev.map(p =>
-                p.name === param.name
-                  ? { ...p, type: detailed.type, options: detailed.options, min: detailed.min, max: detailed.max, unit: detailed.unit ?? p.unit }
-                  : p
-              ));
-            }
-          } catch { /* skip */ }
-        }
-      }
-
-      if (!optionLoadAbort.current) {
-        addLog({ type: LogType.Success, message: 'All parameter options loaded' });
-      }
+      await loadAllParameters(session);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       addLog({ type: LogType.Error, message: `Connection failed: ${msg}` });
@@ -114,7 +118,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       setConnecting(false);
       setLoading(false);
     }
-  }, [port, connected, addLog]);
+  }, [port, connected, addLog, loadAllParameters]);
 
   const [loadingOptions, setLoadingOptions] = useState<string | null>(null);
 
@@ -212,36 +216,15 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
 
   const handleReload = useCallback(async () => {
     if (!connected || !cliRef.current) return;
-    setLoading(true);
+    optionLoadAbort.current = false;
     try {
-      addLog({ type: LogType.Info, message: 'Reloading parameters...' });
-      const params = await cliRef.current.listParameters();
-
-      // merge with existing parameters to preserve options/ranges from initial load
-      setParameters(prev => {
-        const prevByName = new Map(prev.map(p => [p.name, p]));
-        return params.map(param => {
-          const existing = prevByName.get(param.name);
-          if (!existing) return param;
-          // keep existing options/ranges, update current value
-          return {
-            ...existing,
-            currentValue: param.currentValue,
-            currentIndex: param.currentIndex,
-            unchangeable: param.unchangeable,
-            unavailable: param.unavailable,
-          };
-        });
-      });
-      setHasChanges(false);
-      addLog({ type: LogType.Success, message: `Reloaded ${params.length} parameters` });
+      await loadAllParameters(cliRef.current);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       addLog({ type: LogType.Error, message: `Reload failed: ${msg}` });
-    } finally {
       setLoading(false);
     }
-  }, [connected, addLog]);
+  }, [connected, addLog, loadAllParameters]);
 
   const renderParameter = (param: CliParameter) => {
     const isDisabled = !connected || !!settingParam || loading || saving;
