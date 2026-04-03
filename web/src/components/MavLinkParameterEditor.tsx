@@ -69,7 +69,7 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
             });
             mavRef.current = mav;
             setConnected(true);
-            addLog({ type: LogType.Success, message: 'Connected to mLRS via MAVLink' });
+            addLog({ type: LogType.Info, message: 'Connected to mLRS via MAVLink' });
 
             // fetch metadata from GitHub
             try {
@@ -88,7 +88,7 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
             });
             setParameters(params);
             setLoading(false);
-            addLog({ type: LogType.Success, message: `Loaded ${params.length} parameters` });
+            addLog({ type: LogType.Info, message: `Loaded ${params.length} parameters` });
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             addLog({ type: LogType.Error, message: `Connection failed: ${msg}` });
@@ -207,7 +207,7 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
             });
             setParameters(params);
             setHasChanges(false);
-            addLog({ type: LogType.Success, message: `Reloaded ${params.length} parameters` });
+            addLog({ type: LogType.Info, message: `Reloaded ${params.length} parameters` });
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
             addLog({ type: LogType.Error, message: `Reload failed: ${msg}` });

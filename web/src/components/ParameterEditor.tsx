@@ -44,7 +44,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
     setParameters(params);
     setLoading(false);
     setHasChanges(false);
-    addLog({ type: LogType.Success, message: `Loaded ${params.length} parameters` });
+    addLog({ type: LogType.Info, message: `Loaded ${params.length} parameters` });
 
     // progressively load options for each editable parameter
     addLog({ type: LogType.Info, message: 'Loading parameter options...' });
@@ -67,7 +67,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
     }
 
     if (!optionLoadAbort.current) {
-      addLog({ type: LogType.Success, message: 'All parameter options loaded' });
+      addLog({ type: LogType.Info, message: 'All parameter options loaded' });
     }
   }, [addLog]);
 
@@ -97,7 +97,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       });
       cliRef.current = session;
       setConnected(true);
-      addLog({ type: LogType.Success, message: 'Connected to CLI' });
+      addLog({ type: LogType.Info, message: 'Connected to CLI' });
 
       // get version info
       try {

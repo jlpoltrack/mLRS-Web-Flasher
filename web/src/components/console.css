@@ -157,31 +157,30 @@
 }
 
 .log-info {
-  color: #60a5fa;
-  /* Blue 400 */
-  border-left-color: rgba(96, 165, 250, 0.3);
+  color: #e2e8f0;
+  /* Slate 200 — neutral/white for the most common log type */
 }
 
 .log-success {
-  color: #4ade80;
-  /* Green 400 */
-  border-left-color: rgba(74, 222, 128, 0.3);
+  color: #86efac;
+  /* Green 300 */
+  border-left-color: rgba(134, 239, 172, 0.3);
 }
 
 .log-warning {
-  color: #facc15;
-  /* Yellow 400 */
-  border-left-color: rgba(250, 204, 21, 0.3);
+  color: #fde047;
+  /* Yellow 300 */
+  border-left-color: rgba(253, 224, 71, 0.3);
 }
 
 .log-error {
-  color: #f87171;
-  /* Red 400 */
-  border-left-color: rgba(248, 113, 113, 0.3);
+  color: #fca5a5;
+  /* Red 300 */
+  border-left-color: rgba(252, 165, 165, 0.3);
 }
 
 .log-stderr {
-  color: #fb923c;
-  /* Orange 400 */
+  color: #fdba74;
+  /* Orange 300 */
   opacity: 0.9;
 }
