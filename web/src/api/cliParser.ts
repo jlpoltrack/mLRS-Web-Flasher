@@ -41,12 +41,24 @@ export function parseParameterList(response: string): CliParameter[] {
   const lines = response.split(/\r?\n/);
 
   for (const line of lines) {
+    const trimmed = line.trim();
+
+    // parse ConfigId line (e.g. "ConfigId: 0") as a read-only parameter
+    const configIdMatch = trimmed.match(/^ConfigId:\s*(\d+)$/);
+    if (configIdMatch) {
+      params.push({
+        name: 'Config ID',
+        type: 'list',
+        currentValue: configIdMatch[1],
+        unchangeable: true,
+      });
+      continue;
+    }
+
     // parameter lines start with two spaces and contain ' = '
     if (!line.startsWith('  ') || !line.includes(' = ')) continue;
 
     // skip non-parameter lines
-    const trimmed = line.trim();
-    if (trimmed.startsWith('ConfigId:')) continue;
     if (trimmed.startsWith('warn:')) continue;
     if (trimmed.startsWith('err:')) continue;
 
