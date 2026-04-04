@@ -383,8 +383,8 @@ function FirmwareFlasherPanel({
       usbDeviceName: (flashMethod === FlashMethod.DFU) ? selectedUSBDevice : (flashMethod === FlashMethod.STLink ? (selectedStlink?.productName || 'ST-Link') : undefined),
       baudrate: (flashMethod === FlashMethod.UART) ? 115200 : undefined,
       target: targetType === TargetType.Receiver ? BackendTarget.Receiver : BackendTarget.TxModule,
-      // send explicit chipset when local file mode has an mcu selector (tx internal, or receiver + esptool)
-      chipset: (useLocalFile && (targetType === TargetType.TxInternal || (targetType === TargetType.Receiver && flashMethod === FlashMethod.ESPTool))) ? localChipset : undefined,
+      // send explicit chipset when local file mode has an mcu selector (tx internal, or receiver + esptool/passthrough)
+      chipset: (useLocalFile && (targetType === TargetType.TxInternal || (targetType === TargetType.Receiver && (flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough)))) ? localChipset : undefined,
     });
   }, [firmwareFiles, selectedFile, flashMethod, selectedDevice, selectedVersion, selectedPort, selectedUSBDevice, selectedStlink, serialX, targetUartIndex, mspPorts, setError, onFlash, targetType, metadata, useLocalFile, localFile, localFileData, localChipset, setFlashMethod]);
 
@@ -517,12 +517,14 @@ function FirmwareFlasherPanel({
     ];
     if (targetType === TargetType.Receiver) {
       methods.push({ value: FlashMethod.ArduPilotPassthrough, label: 'ArduPilot Passthrough' });
+      methods.push({ value: FlashMethod.InavPassthrough, label: 'INAV Passthrough' });
     }
     return methods;
   }, [targetType]);
 
   const showFlashMethodSelector = localFlashMethods.length > 1;
-  const localHasMcuSelector = targetType === TargetType.TxInternal || (targetType === TargetType.Receiver && flashMethod === FlashMethod.ESPTool);
+  const isPassthrough = flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough;
+  const localHasMcuSelector = targetType === TargetType.TxInternal || (targetType === TargetType.Receiver && (flashMethod === FlashMethod.ESPTool || isPassthrough));
   const filePickerSpanClass = (showFlashMethodSelector && localHasMcuSelector) ? 'span-2' : (showFlashMethodSelector || localHasMcuSelector) ? 'span-3' : 'full-width';
 
   // set default flash method for local file mode
@@ -785,7 +787,7 @@ function FirmwareFlasherPanel({
           </div>
         </div>
       )}
-      {targetType === TargetType.Receiver && flashMethod === FlashMethod.ESPTool && (
+      {targetType === TargetType.Receiver && (flashMethod === FlashMethod.ESPTool || isPassthrough) && (
         <div className="form-group span-1">
           <label>MCU</label>
           <div className="select-wrapper">
@@ -794,6 +796,7 @@ function FirmwareFlasherPanel({
               onChange={(e) => setLocalChipset(e.target.value)}
               disabled={isFlashing}
             >
+              {isPassthrough && <option value="stm32">STM32</option>}
               <option value="esp32">ESP32</option>
               <option value="esp32s3">ESP32-S3</option>
               <option value="esp32c3">ESP32-C3</option>
@@ -839,8 +842,35 @@ function FirmwareFlasherPanel({
         </div>
       )}
 
+      {/* INAV passthrough MSP port selector */}
+      {flashMethod === FlashMethod.InavPassthrough && (
+        <div className="form-group full-width">
+          <label>MSP Port</label>
+          <div className="select-wrapper">
+            <select
+              value={targetUartIndex}
+              onChange={(e) => setTargetUartIndex(e.target.value)}
+              disabled={isFlashing || isScanningMsp}
+            >
+              {isScanningMsp ? (
+                <option>Scanning FC ports...</option>
+              ) : mspPorts.length === 0 ? (
+                <option value="" disabled>No MSP ports found</option>
+              ) : (
+                mspPorts.map(p => (
+                  <option key={p.index} value={p.index}>{p.name}</option>
+                ))
+              )}
+              {!isScanningMsp && mspPorts.length === 0 && targetUartIndex && (
+                <option value={targetUartIndex}>UART {parseInt(targetUartIndex) + 1}</option>
+              )}
+            </select>
+          </div>
+        </div>
+      )}
+
       {/* device selectors */}
-      {(flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough) &&
+      {(flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough) &&
         renderSerialPortRow(
           isFlashing || !localFileData || !selectedPort,
           !localFile ? 'Select a local file first' : !selectedPort ? 'Select a serial port first' : isFlashing ? 'Flashing in progress' : undefined
