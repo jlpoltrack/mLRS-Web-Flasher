@@ -218,6 +218,13 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
     if (!connected || !cliRef.current) return;
     optionLoadAbort.current = false;
     try {
+      // refresh device info
+      try {
+        const version = await cliRef.current.getVersion();
+        setVersionInfo(version);
+      } catch {
+        setVersionInfo('');
+      }
       await loadAllParameters(cliRef.current);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
