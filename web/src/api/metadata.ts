@@ -128,6 +128,11 @@ export const g_targetDict: Record<string, any> = {
                 "\nWireless bridge: ESP32C3\nFor flashing the wireless bridge:\n" + description_radio_passthru_default,
             'wireless' : { 'chipset' : 'esp32c3', 'baud' : 115200, 'erase' : 'full_erase' },
         },
+        'tx-radiomaster-internal-tx16smk3' : {
+            'description' : "Supported radios: TX16S MK3\nFlash method: radio passthrough\n" + description_radio_passthru_default +
+                "\nWireless bridge: ESP32C3\nFor flashing the wireless bridge:\n" + description_radio_passthru_default,
+            'wireless' : { 'chipset' : 'esp32c3', 'baud' : 115200, 'erase' : 'full_erase' },
+        },
     },
     'tx-flysky-internal' : {
         'description' : "Supported radios: PA01\nFlash method: radio passthrough\n" + description_radio_passthru_default +
