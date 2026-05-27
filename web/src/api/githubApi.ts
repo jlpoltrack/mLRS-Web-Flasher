@@ -275,6 +275,7 @@ export const githubApi = {
     let description = targetDict.description || '';
     let wireless = targetDict.wireless;
     let erase = targetDict.erase;
+    let reset = targetDict.reset;
 
     for (const key in targetDict) {
       if (options.filename.includes(key)) {
@@ -284,6 +285,7 @@ export const githubApi = {
           if (subDict.description) description = subDict.description;
           if (subDict.wireless) wireless = subDict.wireless;
           if (subDict.erase) erase = subDict.erase;
+          if (subDict.reset) reset = subDict.reset;
         }
         break;
       }
@@ -336,6 +338,7 @@ export const githubApi = {
       hasWirelessBridge: !!wireless,
       wireless,
       erase,
+      reset,
       isWirelessBridgeFirmware: false
     };
   }
