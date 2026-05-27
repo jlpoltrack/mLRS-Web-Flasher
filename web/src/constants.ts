@@ -104,6 +104,7 @@ export const SERIAL_FILTERS = [
   { usbVendorId: 0x0403 },                       // FTDI
   { usbVendorId: 0x1A86 },                       // CH340 (WCH)
   { usbVendorId: 0x2E8A },                       // Raspberry Pi (RP2040/RP2350)
+  { usbVendorId: 0x2E3C, usbProductId: 0x5750 }, // Composite VCP and Joystick (AX12)
 ] as const;
 
 /**
@@ -117,15 +118,15 @@ export const DFU_USB_FILTERS = [
  * valid serial port vendor IDs per flash method
  */
 export const SERIAL_VID_FILTERS: Record<string, number[]> = {
-  uart:       [0x10C4, 0x0403, 0x1A86],          // CP210x, FTDI, CH340
-  esptool:    [0x10C4, 0x0403, 0x1A86, 0x303A, 0x2E8A], // + Espressif native USB, Raspberry Pi RP MCUs
-  ardupilot_passthrough: [0x1209],                  // ArduPilot
-  internal:   [0x0483],                            // EdgeTX/OpenTX (filtered by PID below)
+  uart:       [0x10C4, 0x0403, 0x1A86, 0x2E3C],           // CP210x, FTDI, CH340, Composite VCP (AX12)
+  esptool:    [0x10C4, 0x0403, 0x1A86, 0x303A, 0x2E8A],   // + Espressif native USB, Raspberry Pi RP MCUs, Composite VCP
+  ardupilot_passthrough: [0x1209],                        // ArduPilot
+  internal:   [0x0483],                                   // EdgeTX/OpenTX (filtered by PID below)
 };
 
 /**
  * flash methods requiring exact VID+PID match (not just VID)
  */
 export const SERIAL_VIDPID_FILTERS: Record<string, { vid: number; pid: number }[]> = {
-  internal: [{ vid: 0x0483, pid: 0x5740 }],       // EdgeTX/OpenTX VCP only
+  internal: [{ vid: 0x0483, pid: 0x5740 }, { vid: 0x2E3C, pid: 0x5750 }],       // EdgeTX/OpenTX/AX12 VCP only
 };
