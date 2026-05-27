@@ -373,6 +373,8 @@ function FirmwareFlasherPanel({
       // empty string signals local file mode; backend skips github download when firmwareData is provided
       version: useLocalFile ? '' : selectedVersion,
       flashMethod: flashMethod,
+      // forward target-level reset (e.g. 'no dtr') so the flasher can pick the flash path
+      reset: metadata?.reset,
       passthroughSerial: (flashMethod === FlashMethod.ArduPilotPassthrough) ? serialX : undefined,
       passthroughIdentifier: (flashMethod === FlashMethod.InavPassthrough) ? parseInt(targetUartIndex) : undefined,
       activationBaud: (flashMethod === FlashMethod.InavPassthrough) ? mspPorts.find(p => String(p.index) === String(targetUartIndex))?.baudRate : undefined,
