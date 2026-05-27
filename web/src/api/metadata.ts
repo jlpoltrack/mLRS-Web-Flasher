@@ -105,7 +105,7 @@ export const g_targetDict: Record<string, any> = {
         },
     },
     'tx-jumper-internal' : {
-        'description' : "Supported radios: T20 V2, T15, T14, T-Pro S\nFlash method: radio passthrough\n" + description_radio_passthru_default +
+        'description' : "Supported radios: T20 V2, T15, T15 Pro, T14, T-Pro S\nFlash method: radio passthrough\n" + description_radio_passthru_default +
         
             "\nWireless bridge: ESP8285\nFor flashing the wireless bridge:\n" + description_radio_passthru_default,
         'wireless' : { 'chipset' : 'esp8266', 'baud' : 115200 },
