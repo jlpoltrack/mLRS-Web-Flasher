@@ -107,7 +107,7 @@ export async function flash(
          const skipEdgetxPassthrough = !!(options.reset && options.reset.includes('no dtr'));
 
          if (skipEdgetxPassthrough) {
-             onLog?.("Internal module: external passthrough active — flashing directly with no-DTR esptool.");
+             onLog?.("Internal module: external passthrough active - flashing directly with no-DTR esptool.");
              options.baud = options.baud || 115200;
              // leave options.reset as 'no dtr': flashESP no-ops DTR/RTS and uses no_reset
          } else {
