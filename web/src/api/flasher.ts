@@ -100,29 +100,41 @@ export async function flash(
      }
      
      if (options.targetType === 'txint') {
-         onLog?.("Initializing EdgeTX Passthrough for internal module...");
-         
-         // Always disable DTR/RTS toggling for internal modules
-         options.reset = 'no_reset';
+         // 'no dtr' on the target's metadata means the radio is already in serial
+         // passthrough (via the mLRS Lua script or a manual button) and the ESP is
+         // already in the bootloader. Flash directly with no-DTR esptool, skipping
+         // the EdgeTX CLI passthrough sequence. Applies to main module and bridge.
+         const skipEdgetxPassthrough = !!(options.reset && options.reset.includes('no dtr'));
 
-         // Check for Wireless Bridge hardware or firmware
-         const isBridge = !!((options.device && options.device.toLowerCase().includes('bridge')) || 
-                          (options.filename && options.filename.toLowerCase().includes('bridge')));
-
-         onLog?.("Internal Module: Checking baud rate settings...");
-         
-         if (isBridge) {
-             onLog?.("Wireless Bridge detected: Forcing 115200 baud.");
-             options.baud = 115200;
+         if (skipEdgetxPassthrough) {
+             onLog?.("Internal module: external passthrough active — flashing directly with no-DTR esptool.");
+             options.baud = options.baud || 115200;
+             // leave options.reset as 'no dtr': flashESP no-ops DTR/RTS and uses no_reset
          } else {
-             if (!options.baud) {
-                 onLog?.("Standard Internal Module: Defaulting to 921600 baud.");
-                 options.baud = 921600;
+             onLog?.("Initializing EdgeTX Passthrough for internal module...");
+
+             // Always disable DTR/RTS toggling for internal modules
+             options.reset = 'no_reset';
+
+             // Check for Wireless Bridge hardware or firmware
+             const isBridge = !!((options.device && options.device.toLowerCase().includes('bridge')) ||
+                              (options.filename && options.filename.toLowerCase().includes('bridge')));
+
+             onLog?.("Internal Module: Checking baud rate settings...");
+
+             if (isBridge) {
+                 onLog?.("Wireless Bridge detected: Forcing 115200 baud.");
+                 options.baud = 115200;
+             } else {
+                 if (!options.baud) {
+                     onLog?.("Standard Internal Module: Defaulting to 921600 baud.");
+                     options.baud = 921600;
+                 }
              }
+
+             await initEdgeTXPassthrough(port as SerialPort, options.baud, isBridge, onLog);
+             await new Promise(r => setTimeout(r, 500));
          }
-         
-         await initEdgeTXPassthrough(port as SerialPort, options.baud, isBridge, onLog);
-         await new Promise(r => setTimeout(r, 500));
      }
 
      // Handle ArduPilot Passthrough for ESP
