@@ -134,19 +134,22 @@ export const g_targetDict: Record<string, any> = {
                 "\nWireless bridge: ESP32C3\nFor flashing the wireless bridge:\n" + description_radio_passthru_default,
             'wireless' : { 'chipset' : 'esp32c3', 'baud' : 115200, 'erase' : 'full_erase' },
         },
+        'tx-radiomaster-internal-ax12' : {
+            'reset' : 'no dtr',           // selects plain no-DTR esptool; skips EdgeTX CLI passthrough
+            'description' : "Supported radios: AX12\nFlash method: manual radio passthrough\n" +
+                "  - with radio fully powered up, connect to DSC USB port\n" +
+                "  - start serial passthrough and bootloader on the radio via Settings->ELRS->Transmitter->ELRS UpdateMode\n" +
+                "\nWireless bridge: ESP32C3\n" +
+                "For flashing the wireless bridge:\n" +
+                    "  - with radio fully powered up, connect to DSC USB port\n" +
+                    "  - start serial passthrough and bootloader on the radio via Settings->ELRS->Transmitter->UpdateBackpack",
+            'wireless' : { 'chipset' : 'esp32c3', 'reset' : 'no dtr', 'baud' : 115200, 'erase' : 'full_erase' },
+        },
     },
     'tx-flysky-internal' : {
         'description' : "Supported radios: PA01\nFlash method: radio passthrough\n" + description_radio_passthru_default +
             "\nWireless bridge: ESP32C3\nFor flashing the wireless bridge:\n" + description_radio_passthru_default,
         'wireless' : { 'chipset' : 'esp32c3', 'baud' : 115200, 'erase' : 'full_erase' },
-    },
-    'tx-passthrough-internal' : {
-        'reset' : 'no dtr',           // selects plain no-DTR esptool; skips EdgeTX CLI passthrough
-        'description' : "Flash method: direct esptool (radio already in serial passthrough)\n" +
-            "  - first start serial passthrough and bootloader on the radio via the mLRS Lua script\n" +
-            "  - with the radio bridged, connect to USB of your radio\n" +
-            "  - select 'USB Serial (VCP)'\n",
-        'wireless' : { 'chipset' : 'esp8266', 'reset' : 'no dtr', 'baud' : 115200 },
     },
     'rx-matek' : {
         'flashmethod' : 'dfu,ardupilot_passthrough',
