@@ -26,6 +26,7 @@ export const g_txModuleInternalDeviceTypeDict: Record<string, any> = {
     'Jumper Radio' :      { 'fname' : 'tx-jumper-internal',      'chipset' : 'esp32' },
     'RadioMaster Radio' : { 'fname' : 'tx-radiomaster-internal', 'chipset' : 'esp32' },
     'FlySky Radio' :      { 'fname' : 'tx-flysky-internal',      'chipset' : 'esp32s3' },
+    'Passthrough Radio' : { 'fname' : 'tx-passthrough-internal', 'chipset' : 'esp32' },
 };
 
 const description_stm32_dfu_default = "Flash method: DFU\n  - connect to USB while pressing the button\n";
@@ -132,6 +133,17 @@ export const g_targetDict: Record<string, any> = {
             'description' : "Supported radios: TX16S MK3\nFlash method: radio passthrough\n" + description_radio_passthru_default +
                 "\nWireless bridge: ESP32C3\nFor flashing the wireless bridge:\n" + description_radio_passthru_default,
             'wireless' : { 'chipset' : 'esp32c3', 'baud' : 115200, 'erase' : 'full_erase' },
+        },
+        'tx-radiomaster-internal-ax12' : {
+            'reset' : 'no dtr',           // selects plain no-DTR esptool; skips EdgeTX CLI passthrough
+            'description' : "Supported radios: AX12\nFlash method: manual radio passthrough\n" +
+                "  - with radio fully powered up, connect to DSC USB port\n" +
+                "  - start serial passthrough and bootloader on the radio via Settings->ELRS->Transmitter->ELRS UpdateMode\n" +
+                "\nWireless bridge: ESP32C3\n" +
+                "For flashing the wireless bridge:\n" +
+                    "  - with radio fully powered up, connect to DSC USB port\n" +
+                    "  - start serial passthrough and bootloader on the radio via Settings->ELRS->Transmitter->UpdateBackpack",
+            'wireless' : { 'chipset' : 'esp32c3', 'reset' : 'no dtr', 'baud' : 115200, 'erase' : 'full_erase' },
         },
     },
     'tx-flysky-internal' : {

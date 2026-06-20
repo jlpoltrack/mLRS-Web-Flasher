@@ -28,6 +28,7 @@ export interface FirmwareMetadata {
   isWirelessBridgeFirmware?: boolean;
   chipset?: string;
   erase?: string;
+  reset?: string;
   wireless?: WirelessBridgeConfig;
   [key: string]: unknown;
 }
