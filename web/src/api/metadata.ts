@@ -26,7 +26,6 @@ export const g_txModuleInternalDeviceTypeDict: Record<string, any> = {
     'Jumper Radio' :      { 'fname' : 'tx-jumper-internal',      'chipset' : 'esp32' },
     'RadioMaster Radio' : { 'fname' : 'tx-radiomaster-internal', 'chipset' : 'esp32' },
     'FlySky Radio' :      { 'fname' : 'tx-flysky-internal',      'chipset' : 'esp32s3' },
-    'Passthrough Radio' : { 'fname' : 'tx-passthrough-internal', 'chipset' : 'esp32' },
 };
 
 const description_stm32_dfu_default = "Flash method: DFU\n  - connect to USB while pressing the button\n";
