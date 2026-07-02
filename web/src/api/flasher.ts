@@ -416,9 +416,9 @@ async function flashESP(
 
     if (isExternalBridge) {
         sm.log("=====================================================");
-        sm.log("Port opened. NOW put the Tx module into FLASH_ESP mode");
-        sm.log("(hold the module's button for 4 seconds, or use the");
-        sm.log("OLED Actions page). Flashing starts automatically.");
+        sm.log("Port opened. Put the Tx module into FLASH_ESP mode");
+        sm.log("using the instructions above.");
+        sm.log("Flashing starts automatically.");
         sm.log("=====================================================");
         await waitForBridgeBootloader(esploader, sm);
         sm.log("Wireless bridge bootloader detected.");
