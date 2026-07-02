@@ -76,7 +76,7 @@ export const g_targetDict: Record<string, any> = {
                 "For flashing the wireless bridge, ensure the following settings are stored:\n" +
                 "  - 'Tx Ser Dest' = serial2\n" +
                 "  - 'Tx Ser Baudrate' = 115200\n" +
-                "IMPORTANT: If using Windows - click 'Flash Wireless Bridge' first and wait for the module to reboot before the next step.\n" +
+                "Click 'Flash Wireless Bridge' first; then, when the console prompts,\n" +
                 "  - put Tx module into FLASH_ESP mode via OLED Actions page\n",
             'wireless' : { 'chipset' : 'esp8266', 'reset' : 'no dtr', 'baud' : 115200 },
         },
@@ -86,7 +86,7 @@ export const g_targetDict: Record<string, any> = {
                 "For flashing the wireless bridge, ensure the following settings are stored:\n" +
                 "  - 'Tx Ser Dest' = serial2\n" +
                 "  - 'Tx Ser Baudrate' = 115200\n" +
-                "IMPORTANT: If using Windows - click 'Flash Wireless Bridge' first and wait for the module to reboot before the next step.\n" +
+                "Click 'Flash Wireless Bridge' first; then, when the console prompts,\n" +
                 "  - put Tx module into FLASH_ESP by holding button located under the 'T' in RadioMaster for 4 seconds\n",
             'wireless' : { 'chipset' : 'esp32c3', 'reset' : 'no dtr', 'baud' : 115200, 'erase' : 'full_erase' },
         },
@@ -96,7 +96,7 @@ export const g_targetDict: Record<string, any> = {
                 "For flashing the wireless bridge, ensure the following settings are stored:\n" +
                 "  - 'Tx Ser Dest' = serial2\n" +
                 "  - 'Tx Ser Baudrate' = 115200\n" +
-                "IMPORTANT: If using Windows - click 'Flash Wireless Bridge' first and wait for the module to reboot before the next step.\n" +
+                "Click 'Flash Wireless Bridge' first; then, when the console prompts,\n" +
                 "  - put Tx module into FLASH_ESP mode via OLED Actions page\n",
             'wireless' : { 'chipset' : 'esp8266', 'reset' : 'no dtr', 'baud' : 115200 },
         },
