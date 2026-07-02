@@ -1,5 +1,5 @@
 // 2026-03-22
-import { ESPLoader, Transport, type Before } from 'esptool-js';
+import { ESPLoader, Transport, type Before, type IEspLoaderTerminal } from 'esptool-js';
 import { DFU, DFUse } from 'webdfu';
 
 import { initArduPilotPassthrough } from './ardupilotPassthrough';
@@ -261,6 +261,43 @@ const fetchBinary = async (path: string): Promise<string> => {
     return Array.from(bytes, b => String.fromCharCode(b)).join('');
 };
 
+// poll for the wireless bridge's ESP ROM bootloader by attempting an esptool
+// sync until it answers. The user enters FLASH_ESP mode while this runs; sync
+// only succeeds once the bridge bootloader is reachable through the main MCU,
+// so this doubles as detection that FLASH_ESP mode is active.
+async function waitForBridgeBootloader(
+    esploader: ESPLoader,
+    sm: FlasherStateMachine,
+    timeoutMs = 90000
+): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    let lastNotice = 0;
+
+    // silence the loader's per-attempt "Connecting..." output during the poll
+    const loaderInternals = esploader as unknown as { terminal?: IEspLoaderTerminal };
+    const originalTerminal = loaderInternals.terminal;
+    loaderInternals.terminal = { clean: () => {}, writeLine: () => {}, write: () => {} };
+    try {
+        for (;;) {
+            try {
+                await esploader.connect('no_reset' as Before, 1, false);
+                return;
+            } catch {
+                if (Date.now() >= deadline) {
+                    throw new Error("Timed out waiting for the wireless bridge bootloader. Put the Tx module into FLASH_ESP mode and flash again.");
+                }
+                if (Date.now() - lastNotice >= 15000) {
+                    sm.log(`Waiting for FLASH_ESP mode... (${Math.round((deadline - Date.now()) / 1000)}s remaining)`);
+                    lastNotice = Date.now();
+                }
+                await new Promise(r => setTimeout(r, 500));
+            }
+        }
+    } finally {
+        loaderInternals.terminal = originalTerminal;
+    }
+}
+
 async function flashESP(
   port: SerialPort,
   firmwareData: ArrayBuffer,
@@ -269,23 +306,56 @@ async function flashESP(
   const sm = new FlasherStateMachine(options.onProgress, options.onLog);
   const { baud = 921600, erase, filename, reset, flashMethod, isLocalFile } = options;
 
+  // external tx module wireless bridge (e.g. RadioMaster Nomad/Bandit/Ranger):
+  // opening or closing the serial port glitches DTR/RTS through the module's
+  // USB-UART wiring (notably on Windows) and resets the main MCU, which drops
+  // it out of FLASH_ESP passthrough mode. Open the port exactly once, before
+  // the user enters FLASH_ESP mode, and keep it open for the whole flash.
+  const isExternalBridge = !!(options.isWirelessBridge && options.targetType === 'tx' &&
+      reset && reset.includes('no dtr'));
+
   sm.transition('CONNECTING', "Connecting to ESP device...");
-  
-  // Ensure port is closed (so esptool can open it) 
-  if (port.readable || port.writable) {
-      sm.log("Port appears open, attempting to close...");
-      try {
-          await port.close(); 
-          sm.log("Port closed in flashESP.");
-      } catch (e) {
-          sm.log(`Warning: Port closure in flashESP failed: ${e instanceof Error ? e.message : String(e)}`);
+
+  if (isExternalBridge) {
+      // close any leftover session (e.g. CLI) with the signals settled so the
+      // close itself cannot glitch the control lines
+      if (port.readable || port.writable) {
+          sm.log("Port appears open, closing before starting bridge session...");
+          try {
+              await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+          } catch { /* some adapters do not support setSignals */ }
+          try {
+              await port.close();
+          } catch (e) {
+              sm.log(`Warning: Port closure in flashESP failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          await new Promise(r => setTimeout(r, 500));
       }
-      // Wait a moment for OS to release the port
+
+      // the one unavoidable open (and possible main MCU reset on Windows)
+      // happens now, while the module is still in normal mode. 115200 matches
+      // the esptool ROM baud, so esptool-js never needs to reopen the port.
+      await port.open({ baudRate: 115200 });
+      try {
+          await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      } catch { /* some adapters do not support setSignals */ }
+  } else {
+      // Ensure port is closed (so esptool can open it)
+      if (port.readable || port.writable) {
+          sm.log("Port appears open, attempting to close...");
+          try {
+              await port.close();
+              sm.log("Port closed in flashESP.");
+          } catch (e) {
+              sm.log(`Warning: Port closure in flashESP failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          // Wait a moment for OS to release the port
+          await new Promise(r => setTimeout(r, 500));
+      }
+
+      // give the browser extra time to fully release the port
       await new Promise(r => setTimeout(r, 500));
   }
-
-  // give the browser extra time to fully release the port
-  await new Promise(r => setTimeout(r, 500));
 
   // @ts-ignore: ESPLoader types are not perfect
   const transport = new Transport(port as any);
@@ -295,10 +365,28 @@ async function flashESP(
       transport.setDTR = async () => { /* no-op */ };
       transport.setRTS = async () => { /* no-op */ };
   }
-  
+
+  // reuse the already-open port: Transport.connect normally calls port.open(),
+  // which would reset the main MCU again and drop FLASH_ESP mode
+  if (isExternalBridge) {
+      const originalConnect = transport.connect.bind(transport);
+      transport.connect = async (baudRate: number = 115200, serialOptions = {}) => {
+          if (!port.readable) {
+              return originalConnect(baudRate, serialOptions);
+          }
+          transport.baudrate = baudRate;
+          if (!port.readable.locked) {
+              (transport as unknown as { reader?: ReadableStreamDefaultReader<Uint8Array> }).reader =
+                  port.readable.getReader();
+          }
+      };
+  }
+
   const esploader = new ESPLoader({
     transport: transport,
-    baudrate: baud,
+    // bridge flow must stay at the ROM baud: a baud change would close and
+    // reopen the port, resetting the main MCU out of FLASH_ESP mode
+    baudrate: isExternalBridge ? 115200 : baud,
     terminal: {
         clean: () => {},
         writeLine: (data: string) => { 
@@ -325,7 +413,16 @@ async function flashESP(
     const resetMode = (flashMethod === 'ardupilot_passthrough' || flashMethod === 'inav_passthrough') 
         ? 'no_reset' as Before 
         : ((reset && (reset.includes('no dtr') || reset.includes('no_reset'))) ? 'no_reset' as Before : 'default_reset' as Before);
-    
+
+    if (isExternalBridge) {
+        sm.log("=====================================================");
+        sm.log("Port opened. Put the Tx module into FLASH_ESP mode");
+        sm.log("using the instructions above.");
+        sm.log("Flashing starts automatically.");
+        sm.log("=====================================================");
+        await waitForBridgeBootloader(esploader, sm);
+        sm.log("Wireless bridge bootloader detected.");
+    }
 
     chipName = await esploader.main(resetMode);
     
