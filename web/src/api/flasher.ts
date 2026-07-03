@@ -323,7 +323,10 @@ async function flashESP(
           sm.log("Port appears open, closing before starting bridge session...");
           try {
               await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-          } catch { /* some adapters do not support setSignals */ }
+          } catch (e) {
+              // some adapters do not support setSignals
+              sm.log(`Warning: setSignals before close failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
           try {
               await port.close();
           } catch (e) {
@@ -338,7 +341,10 @@ async function flashESP(
       await port.open({ baudRate: 115200 });
       try {
           await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-      } catch { /* some adapters do not support setSignals */ }
+      } catch (e) {
+          // some adapters do not support setSignals
+          sm.log(`Warning: setSignals after open failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
   } else {
       // Ensure port is closed (so esptool can open it)
       if (port.readable || port.writable) {

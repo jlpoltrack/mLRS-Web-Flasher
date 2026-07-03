@@ -77,7 +77,9 @@ export const g_targetDict: Record<string, any> = {
                 "  - 'Tx Ser Dest' = serial2\n" +
                 "  - 'Tx Ser Baudrate' = 115200\n" +
                 "Click 'Flash Wireless Bridge' first; then, when the console prompts,\n" +
-                "  - put Tx module into FLASH_ESP mode via OLED Actions page\n",
+                "  - put Tx module into FLASH_ESP mode via OLED Actions page\n" +
+                "Linux only: the module does not reboot when clicking - if flashing\n" +
+                "does not start, put the module into FLASH_ESP mode before clicking instead.\n",
             'wireless' : { 'chipset' : 'esp8266', 'reset' : 'no dtr', 'baud' : 115200 },
         },
         'tx-radiomaster-nomad' : {
@@ -87,7 +89,9 @@ export const g_targetDict: Record<string, any> = {
                 "  - 'Tx Ser Dest' = serial2\n" +
                 "  - 'Tx Ser Baudrate' = 115200\n" +
                 "Click 'Flash Wireless Bridge' first; then, when the console prompts,\n" +
-                "  - put Tx module into FLASH_ESP by holding button located under the 'T' in RadioMaster for 4 seconds\n",
+                "  - put Tx module into FLASH_ESP by holding button located under the 'T' in RadioMaster for 4 seconds\n" +
+                "Linux only: the module does not reboot when clicking - if flashing\n" +
+                "does not start, put the module into FLASH_ESP mode before clicking instead.\n",
             'wireless' : { 'chipset' : 'esp32c3', 'reset' : 'no dtr', 'baud' : 115200, 'erase' : 'full_erase' },
         },
         'tx-radiomaster-ranger' : {
@@ -97,7 +101,9 @@ export const g_targetDict: Record<string, any> = {
                 "  - 'Tx Ser Dest' = serial2\n" +
                 "  - 'Tx Ser Baudrate' = 115200\n" +
                 "Click 'Flash Wireless Bridge' first; then, when the console prompts,\n" +
-                "  - put Tx module into FLASH_ESP mode via OLED Actions page\n",
+                "  - put Tx module into FLASH_ESP mode via OLED Actions page\n" +
+                "Linux only: the module does not reboot when clicking - if flashing\n" +
+                "does not start, put the module into FLASH_ESP mode before clicking instead.\n",
             'wireless' : { 'chipset' : 'esp8266', 'reset' : 'no dtr', 'baud' : 115200 },
         },
         'tx-radiomaster-rp4td' : {
