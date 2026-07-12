@@ -32,6 +32,10 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
     const [settingParam, setSettingParam] = useState<string | null>(null);
     const [hasChanges, setHasChanges] = useState(false);
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+    // raw text while the bind phrase input is focused; null = show value derived from the param.
+    // the u32 encoding pads to 6 chars with 'a', so converting on every keystroke would make
+    // deleted characters reappear as 'a' -- convert only on commit (blur/Enter).
+    const [bindPhraseDraft, setBindPhraseDraft] = useState<string | null>(null);
     const lastSentValue = useRef<{ name: string; value: string } | null>(null);
     const mavRef = useRef<MavLinkConnection | null>(null);
 
@@ -251,7 +255,18 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
 
         // BIND_PHRASE_U32 -- editable text input with base-40 conversion
         if (param.paramId === 'BIND_PHRASE_U32') {
-            const phrase = getDisplayValue(param) as string;
+            const phrase = bindPhraseDraft ?? (getDisplayValue(param) as string);
+            const commitBindPhrase = (value: string) => {
+                setBindPhraseDraft(null);
+                if (value.length === 0) return;
+                // reflect the committed value locally right away, then send to device
+                const newU32 = mavParams.u32FromBindphrase(value);
+                const newFloat = mavParams.uint32ToFloatBits(newU32);
+                setParameters(prev => prev.map(p =>
+                    p.paramId === 'BIND_PHRASE_U32' ? { ...p, value: newFloat } : p
+                ));
+                handleParamChange(param, value, meta);
+            };
             return (
                 <div key={param.paramId} className={`param-row ${isBeingSet ? 'param-updating' : ''}`}>
                     <label className="param-label">{displayName}</label>
@@ -262,25 +277,14 @@ function MavLinkParameterEditor({ addLog }: MavLinkParameterEditorProps) {
                             maxLength={6}
                             pattern="[a-z0-9_#\-.]*"
                             onChange={(e) => {
-                                // update local state for responsive UI
-                                const newPhrase = e.target.value;
-                                const newU32 = mavParams.u32FromBindphrase(newPhrase);
-                                const newFloat = mavParams.uint32ToFloatBits(newU32);
-                                setParameters(prev => prev.map(p =>
-                                    p.paramId === 'BIND_PHRASE_U32' ? { ...p, value: newFloat } : p
-                                ));
+                                setBindPhraseDraft(e.target.value.toLowerCase().replace(/[^a-z0-9_#\-.]/g, ''));
                             }}
                             onBlur={(e) => {
-                                if (e.target.value.length > 0) {
-                                    handleParamChange(param, e.target.value, meta);
-                                }
+                                commitBindPhrase(e.target.value);
                             }}
                             onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
-                                    const val = (e.target as HTMLInputElement).value;
-                                    if (val.length > 0) {
-                                        handleParamChange(param, val, meta);
-                                    }
+                                    commitBindPhrase((e.target as HTMLInputElement).value);
                                 }
                             }}
                             disabled={isDisabled}
