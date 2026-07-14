@@ -168,7 +168,21 @@ function buildMetadataMap(parsed: SetupParamMetadata[]): Map<string, SetupParamM
         isDynamicOptions: false,
     });
 
-    // add parsed parameters from setup_list.h
+    // legacy parameters renamed upstream -- devices on older firmware still report these
+    // v1.4-release and earlier: TX_SER_DEST "serial,serial2,mbridge"
+    // renamed on main to TX_SER_PORT "serial,wbridge,serial2,com,mbridge" (indices differ)
+    map.set('TX_SER_DEST', {
+        mavlinkName: 'TX_SER_DEST',
+        displayName: 'Tx Ser Dest',
+        type: 'LIST',
+        defaultValue: 0,
+        min: 0, max: 0,
+        unit: '',
+        options: ['serial', 'serial2', 'mbridge'],
+        isDynamicOptions: false,
+    });
+
+    // add parsed parameters from setup_list.h (overrides legacy entries if re-added upstream)
     for (const param of parsed) {
         map.set(param.mavlinkName, param);
     }
