@@ -13,12 +13,13 @@ const LuaScript = lazy(() => import('./components/LuaScript'));
 const Tools = lazy(() => import('./components/Tools'));
 const ParameterEditor = lazy(() => import('./components/ParameterEditor'));
 const MavLinkParameterEditor = lazy(() => import('./components/MavLinkParameterEditor'));
+const CliCommands = lazy(() => import('./components/CliCommands'));
 // SwdTest is hidden from navigation but kept for development use
 // const SwdTest = lazy(() => import('./components/SwdTest'));
 
 
 function App() {
-  const [activeTab, setActiveTab] = useState<TargetType | 'lua' | 'tools' | 'parameters' | 'mavlink-parameters'>(TargetType.TxExternal);
+  const [activeTab, setActiveTab] = useState<TargetType | 'lua' | 'tools' | 'parameters' | 'mavlink-parameters' | 'cli-commands'>(TargetType.TxExternal);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [versions, setVersions] = useState<Version[]>([]);
   const [devices, setDevices] = useState<{ tx: string[], rx: string[], txint: string[] }>({ tx: [], rx: [], txint: [] });
@@ -213,6 +214,10 @@ function App() {
             case 'mavlink-parameters':
               return (
                 <MavLinkParameterEditor addLog={addLog} />
+              );
+            case 'cli-commands':
+              return (
+                <CliCommands addLog={addLog} />
               );
             case 'tools':
               return (
