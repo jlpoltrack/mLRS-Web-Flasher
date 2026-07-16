@@ -115,7 +115,10 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       // get version info
       try {
         const version = await session.getVersion();
-        setVersionMismatch(detectParamVersionMismatch(version));
+        const mismatch = detectParamVersionMismatch(version);
+        setVersionMismatch(mismatch);
+        // Rx params are locked on mismatch, so start the group collapsed
+        if (mismatch) setCollapsedGroups(prev => new Set(prev).add('Rx'));
         setVersionInfo(stripVersionWarnings(version));
         addLog({ type: LogType.Info, message: version });
       } catch {
@@ -236,7 +239,10 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       // refresh device info
       try {
         const version = await cliRef.current.getVersion();
-        setVersionMismatch(detectParamVersionMismatch(version));
+        const mismatch = detectParamVersionMismatch(version);
+        setVersionMismatch(mismatch);
+        // Rx params are locked on mismatch, so start the group collapsed
+        if (mismatch) setCollapsedGroups(prev => new Set(prev).add('Rx'));
         setVersionInfo(stripVersionWarnings(version));
       } catch {
         setVersionInfo('');
@@ -251,7 +257,9 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
   }, [connected, addLog, loadAllParameters]);
 
   const renderParameter = (param: CliParameter) => {
-    const isDisabled = !connected || !!settingParam || loading || saving;
+    // Rx params can't be edited reliably when Tx and Rx param versions differ
+    const isRxLocked = versionMismatch !== null && param.name.startsWith('Rx ');
+    const isDisabled = !connected || !!settingParam || loading || saving || isRxLocked;
     const isBeingSet = settingParam === param.name;
 
     if (param.unavailable) {
@@ -477,6 +485,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
           {versionMismatch === 'rx'
             ? 'Rx param version mismatch — update receiver firmware!'
             : 'Tx param version mismatch — update Tx module firmware!'}
+          {' '}Rx parameter editing is disabled.
         </div>
       )}
 
