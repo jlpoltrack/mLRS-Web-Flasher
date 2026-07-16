@@ -43,6 +43,9 @@ export function parseParameterList(response: string): CliParameter[] {
   for (const line of lines) {
     const trimmed = line.trim();
 
+    // skip firmware param-version mismatch warnings ('!! ... !!')
+    if (trimmed.startsWith('!!')) continue;
+
     // parse ConfigId line (e.g. "ConfigId: 0") as a read-only parameter
     const configIdMatch = trimmed.match(/^ConfigId:\s*(\d+)$/);
     if (configIdMatch) {
@@ -153,8 +156,9 @@ export function parseParameterOptions(
   const lines = response.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
   if (lines.length === 0) return null;
 
-  // skip ConfigId line
-  const dataLines = lines.filter(l => !l.startsWith('ConfigId:') && !l.startsWith('warn:'));
+  // skip ConfigId and warning lines (incl. '!!' param-version mismatch warnings)
+  const dataLines = lines.filter(l =>
+    !l.startsWith('ConfigId:') && !l.startsWith('warn:') && !l.startsWith('!!'));
   if (dataLines.length === 0) return null;
 
   // first data line should be the current value
@@ -224,5 +228,18 @@ export function parseParameterOptions(
     };
   }
 
+  return null;
+}
+
+/**
+ * detect the firmware's param layout version mismatch warning, which the CLI
+ * prepends to responses when Tx and Rx run different param layout versions:
+ *   !! Rx param version smaller than Tx param version. !!
+ *   !! Please upgrade receiver.                        !!
+ * (or the mirrored Tx variant)
+ */
+export function detectParamVersionMismatch(response: string): 'rx' | 'tx' | null {
+  if (response.includes('!! Rx param version smaller')) return 'rx';
+  if (response.includes('!! Tx param version smaller')) return 'tx';
   return null;
 }
