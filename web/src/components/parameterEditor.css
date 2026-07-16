@@ -85,6 +85,18 @@
   box-shadow: none;
 }
 
+/* param version mismatch warning */
+.param-version-warning {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin: 12px 0 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fbbf24;
+}
+
 /* version display */
 .version-display {
   background: rgba(15, 23, 42, 0.5);

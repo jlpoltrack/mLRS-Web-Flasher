@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { LogType } from '../constants';
 import { CliSession } from '../api/cliService';
+import { detectParamVersionMismatch } from '../api/cliParser';
 import type { CliParameter } from '../api/cliParser';
 import type { LogEntry } from '../types';
 import { useSerialPort } from '../hooks/useSerialPort';
@@ -12,6 +13,16 @@ import './parameterEditor.css';
 
 interface ParameterEditorProps {
   addLog: (entry: LogEntry) => void;
+}
+
+// the firmware prepends '!! ... !!' warning lines to the version output;
+// they are surfaced via the mismatch banner instead
+function stripVersionWarnings(version: string): string {
+  return version
+    .split(/\r?\n/)
+    .filter(line => !line.trim().startsWith('!!'))
+    .join('\n')
+    .trim();
 }
 
 function ParameterEditor({ addLog }: ParameterEditorProps) {
@@ -25,6 +36,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
   const [hasChanges, setHasChanges] = useState(false);
   const lastSentValue = useRef<{ name: string; value: string } | null>(null);
   const [versionInfo, setVersionInfo] = useState('');
+  const [versionMismatch, setVersionMismatch] = useState<'rx' | 'tx' | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const optionLoadAbort = useRef(false);
   const cliRef = useRef<CliSession | null>(null);
@@ -82,6 +94,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       setConnected(false);
       setParameters([]);
       setVersionInfo('');
+      setVersionMismatch(null);
       setHasChanges(false);
       addLog({ type: LogType.Info, message: 'Disconnected from CLI' });
       return;
@@ -102,7 +115,11 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       // get version info
       try {
         const version = await session.getVersion();
-        setVersionInfo(version);
+        const mismatch = detectParamVersionMismatch(version);
+        setVersionMismatch(mismatch);
+        // Rx params are locked on mismatch, so start the group collapsed
+        if (mismatch) setCollapsedGroups(prev => new Set(prev).add('Rx'));
+        setVersionInfo(stripVersionWarnings(version));
         addLog({ type: LogType.Info, message: version });
       } catch {
         // version query is optional
@@ -205,6 +222,7 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       setConnected(false);
       setParameters([]);
       setVersionInfo('');
+      setVersionMismatch(null);
       addLog({ type: LogType.Info, message: 'Disconnected. Reconnect after devices have rebooted.' });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -221,9 +239,14 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
       // refresh device info
       try {
         const version = await cliRef.current.getVersion();
-        setVersionInfo(version);
+        const mismatch = detectParamVersionMismatch(version);
+        setVersionMismatch(mismatch);
+        // Rx params are locked on mismatch, so start the group collapsed
+        if (mismatch) setCollapsedGroups(prev => new Set(prev).add('Rx'));
+        setVersionInfo(stripVersionWarnings(version));
       } catch {
         setVersionInfo('');
+        setVersionMismatch(null);
       }
       await loadAllParameters(cliRef.current);
     } catch (err) {
@@ -234,7 +257,9 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
   }, [connected, addLog, loadAllParameters]);
 
   const renderParameter = (param: CliParameter) => {
-    const isDisabled = !connected || !!settingParam || loading || saving;
+    // Rx params can't be edited reliably when Tx and Rx param versions differ
+    const isRxLocked = versionMismatch !== null && param.name.startsWith('Rx ');
+    const isDisabled = !connected || !!settingParam || loading || saving || isRxLocked;
     const isBeingSet = settingParam === param.name;
 
     if (param.unavailable) {
@@ -453,6 +478,16 @@ function ParameterEditor({ addLog }: ParameterEditorProps) {
           </div>
         )}
       </div>
+
+      {/* param version mismatch warning */}
+      {versionMismatch && (
+        <div className="param-version-warning">
+          {versionMismatch === 'rx'
+            ? 'Rx param version mismatch — update receiver firmware!'
+            : 'Tx param version mismatch — update Tx module firmware!'}
+          {' '}Rx parameter editing is disabled.
+        </div>
+      )}
 
       {/* version info */}
       {versionInfo && (
