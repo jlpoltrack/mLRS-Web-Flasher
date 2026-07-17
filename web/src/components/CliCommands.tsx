@@ -159,11 +159,12 @@ function CliCommands({ addLog }: CliCommandsProps) {
     }
   }, [port, connected, addLog, teardown, refreshSettings]);
 
-  // firmware accepts empty (clears) or 8-24 chars; blanks are stripped and ',' ';' terminate the command
-  const validateEspString = (value: string, what: string): string | null => {
+  // firmware accepts empty (clears) or up to 24 chars (8 minimum for the password);
+  // blanks are stripped and ',' ';' terminate the command
+  const validateEspString = (value: string, what: string, minLen: number): string | null => {
     if (value.length === 0) return null;
-    if (value.length < 8 || value.length > 24) {
-      return `${what} must be 8-24 characters, or empty to clear`;
+    if (value.length < minLen || value.length > 24) {
+      return `${what} must be ${minLen > 1 ? `${minLen}-24` : 'at most 24'} characters, or empty to clear`;
     }
     if (/[ ,;]/.test(value)) {
       return `${what} must not contain spaces, ',' or ';'`;
@@ -172,7 +173,7 @@ function CliCommands({ addLog }: CliCommandsProps) {
   };
 
   const handleEspSetPswd = useCallback(() => {
-    const err = validateEspString(espPswd, 'Password');
+    const err = validateEspString(espPswd, 'Password', 8);
     if (err) {
       addLog({ type: LogType.Error, message: err });
       return;
@@ -181,7 +182,7 @@ function CliCommands({ addLog }: CliCommandsProps) {
   }, [espPswd, addLog, runEspCommand]);
 
   const handleEspSetNetSsid = useCallback(() => {
-    const err = validateEspString(espNetSsid, 'SSID');
+    const err = validateEspString(espNetSsid, 'SSID', 1);
     if (err) {
       addLog({ type: LogType.Error, message: err });
       return;
@@ -310,7 +311,7 @@ function CliCommands({ addLog }: CliCommandsProps) {
         <div className={`cmd-row ${busyCommand?.includes('netssid') ? 'cmd-running' : ''}`}>
           <div className="cmd-label">Network SSID</div>
           <div className="cmd-desc">
-            SSID of the network to join when using the UDPSTA protocol (8-24 characters).
+            SSID of the network to join when using the UDPSTA protocol (up to 24 characters).
             <br />
             Leave the field empty to reset the SSID to its default value.
           </div>
@@ -319,7 +320,7 @@ function CliCommands({ addLog }: CliCommandsProps) {
               type="text"
               value={espNetSsid}
               maxLength={24}
-              placeholder="8-24 chars, empty resets"
+              placeholder="up to 24 chars, empty resets"
               onChange={(e) => setEspNetSsid(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && !disabled) handleEspSetNetSsid(); }}
               disabled={disabled}
