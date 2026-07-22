@@ -56,7 +56,7 @@ function Tools({ addLog }: ToolsProps) {
       const port = await navigator.serial.requestPort({ filters: [...SERIAL_FILTERS] });
       setSerialPort(port);
       setPortName(formatPortName(port));
-    } catch (_) {
+    } catch {
       // user cancelled
     }
   }, [addLog]);
@@ -79,10 +79,10 @@ function Tools({ addLog }: ToolsProps) {
         const pid = device.productId.toString(16).padStart(4, '0').toUpperCase();
         setUsbDeviceName(`STM32 DFU (${vid}:${pid})`);
       }
-    } catch (_) {
+    } catch {
       // user cancelled
     }
-  }, [addLog]);
+  }, [addLog, stm32Method]);
 
   const handleErase = useCallback(async () => {
     setIsErasing(true);
@@ -92,7 +92,7 @@ function Tools({ addLog }: ToolsProps) {
       onLog: (message: string) => {
         addLog({ type: LogType.Info, message });
       },
-      onProgress: (pct: number, _status: string) => {
+      onProgress: (pct: number) => {
         setProgress(pct);
       },
     };
