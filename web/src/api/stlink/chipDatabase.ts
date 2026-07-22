@@ -103,7 +103,7 @@ export const CHIP_DATABASE: ChipInfo[] = [
       registerBase: 0x40022000,
       crOffset: 0x10,
       srOffset: 0x0c,
-      programWidth: 32,
+      programWidth: 16, // F0/F1/F3 FPEC programs 16-bit half-words
       eraseMethod: 'AR',
     },
   },
@@ -126,7 +126,7 @@ export const CHIP_DATABASE: ChipInfo[] = [
       registerBase: 0x40022000,
       crOffset: 0x10,
       srOffset: 0x0c,
-      programWidth: 32,
+      programWidth: 16, // F0/F1/F3 FPEC programs 16-bit half-words
       eraseMethod: 'AR',
     },
   },
@@ -149,7 +149,7 @@ export const CHIP_DATABASE: ChipInfo[] = [
       registerBase: 0x40022000,
       crOffset: 0x10,
       srOffset: 0x0c,
-      programWidth: 32,
+      programWidth: 16, // F0/F1/F3 FPEC programs 16-bit half-words
       eraseMethod: 'AR',
     },
   },
