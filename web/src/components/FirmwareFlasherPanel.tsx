@@ -411,11 +411,17 @@ function FirmwareFlasherPanel({
   const handleFlashWirelessBridge = useCallback(async () => {
     // use local bridge file if provided
     if (useLocalFile && localBridgeFile && localBridgeFileData) {
-        // hardcoded wireless params mirror the metadata.wireless convention per chipset;
-        // update here if new chipsets are added or defaults change
-        const wirelessParams = localBridgeChipset === 'esp32c3'
-          ? { reset: 'no dtr', baud: 115200, erase: 'full_erase' as string | undefined }
-          : { reset: 'no dtr', baud: 115200, erase: undefined as string | undefined };
+        // reset selects the flash path in flasher.ts:
+        //  - internal Tx modules reach the bridge through the radio's EdgeTX CLI
+        //    passthrough, so leave reset undefined to trigger that sequence
+        //    (matches metadata.wireless for internal targets, which omit reset).
+        //    Forcing 'no dtr' here makes flasher skip the passthrough and the
+        //    bridge is never kicked into upload mode.
+        //  - external Tx modules use FLASH_ESP mode, which the flasher keys off
+        //    'no dtr' to open the port once and wait for the bootloader.
+        const isInternal = targetType === TargetType.TxInternal;
+        const bridgeReset = isInternal ? undefined : 'no dtr';
+        const bridgeErase = localBridgeChipset === 'esp32c3' ? 'full_erase' : undefined;
         setError(null);
         onFlash({
           type: targetType,
@@ -426,9 +432,9 @@ function FirmwareFlasherPanel({
           firmwareData: localBridgeFileData,
           port: selectedPort || undefined,
           target: BackendTarget.WirelessBridge,
-          reset: wirelessParams.reset,
-          baudrate: wirelessParams.baud,
-          erase: wirelessParams.erase,
+          reset: bridgeReset,
+          baudrate: 115200,
+          erase: bridgeErase,
           flashMethod: FlashMethod.ESPTool,
           chipset: localBridgeChipset,
         });

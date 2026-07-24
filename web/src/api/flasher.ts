@@ -116,8 +116,12 @@ export async function flash(
              // Always disable DTR/RTS toggling for internal modules
              options.reset = 'no_reset';
 
-             // Check for Wireless Bridge hardware or firmware
-             const isBridge = !!((options.device && options.device.toLowerCase().includes('bridge')) ||
+             // Check for Wireless Bridge hardware or firmware.
+             // isWirelessBridge is the reliable signal (set when target is the
+             // wireless bridge); the name checks are a fallback since a local
+             // file's name may not contain 'bridge'.
+             const isBridge = !!(options.isWirelessBridge ||
+                              (options.device && options.device.toLowerCase().includes('bridge')) ||
                               (options.filename && options.filename.toLowerCase().includes('bridge')));
 
              onLog?.("Internal Module: Checking baud rate settings...");
