@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, Cpu, FileCode, HardDrive, Wrench, SlidersHorizontal } from 'lucide-react';
+import { Radio, Cpu, FileCode, HardDrive, Wrench, SlidersHorizontal, Terminal } from 'lucide-react';
 import { TargetType } from '../constants';
 import './navigation.css';
 import logo from '../assets/logo.png';
@@ -7,14 +7,14 @@ import logo from '../assets/logo.png';
 // last updated: 2026-03-26
 
 interface NavigationProps {
-  activeTab: TargetType | 'lua' | 'tools' | 'parameters' | 'mavlink-parameters';
-  onTabChange: (tabId: TargetType | 'lua' | 'tools' | 'parameters' | 'mavlink-parameters') => void;
+  activeTab: TargetType | 'lua' | 'tools' | 'parameters' | 'mavlink-parameters' | 'cli-commands';
+  onTabChange: (tabId: TargetType | 'lua' | 'tools' | 'parameters' | 'mavlink-parameters' | 'cli-commands') => void;
   useLocalFile: boolean;
   onLocalFileToggle: (value: boolean) => void;
 }
 
 function Navigation({ activeTab, onTabChange, useLocalFile, onLocalFileToggle }: NavigationProps) {
-  const tabs: { id: TargetType | 'lua' | 'tools' | 'parameters' | 'mavlink-parameters'; label: string; icon: React.ReactNode }[] = [
+  const tabs: { id: TargetType | 'lua' | 'tools' | 'parameters' | 'mavlink-parameters' | 'cli-commands'; label: string; icon: React.ReactNode }[] = [
     { id: TargetType.TxExternal, label: 'Tx Module (External)', icon: <Radio size={20} /> },
     { id: TargetType.Receiver, label: 'Receiver', icon: <Cpu size={20} /> },
     { id: TargetType.TxInternal, label: 'Tx Module (Internal)', icon: <Radio size={20} /> },
@@ -24,6 +24,7 @@ function Navigation({ activeTab, onTabChange, useLocalFile, onLocalFileToggle }:
   const paramTabs: typeof tabs = [
     { id: 'parameters', label: 'CLI Param Editor', icon: <SlidersHorizontal size={20} /> },
     { id: 'mavlink-parameters', label: 'MAVLink Param Editor', icon: <SlidersHorizontal size={20} /> },
+    { id: 'cli-commands', label: 'CLI Commands', icon: <Terminal size={20} /> },
   ];
 
   const utilityTabs: typeof tabs = [
