@@ -32,7 +32,7 @@ const description_stm32_dfu_default = "Flash method: DFU\n  - connect to USB whi
 const description_stm32_stlink_default = "Flash method: STLink\n  - connect SWD pads to STLink\n";
 const description_stm32_uart_default = "Flash method: UART\n  - connect Tx,Rx pads to USB-TTL adapter\n  - select serial port\n  - power up receiver while pressing the button\n";
 const description_esp_esptool_uart_default = "Flash method: esptool\n  - connect Tx,Rx pads to USB-TTL adapter\n  - select serial port\n  - power up receiver while pressing the button\n";
-const description_ardupilot_passthrough_default = "In addition flashing via ArduPilot passthrough is supported:\n  - follow the instructions in the console\n";
+const description_passthrough_default = "In addition flashing via ArduPilot or INAV passthrough is supported:\n  - follow the instructions in the console\n  - passthrough flashing with INAV requires INAV version 9.1 or greater\n";
 const description_radio_passthru_default = "  - with radio powered up, connect to USB of your radio\n  - select 'USB Serial (VCP)'\n";
 
 export const g_targetDict: Record<string, any> = {
@@ -158,17 +158,17 @@ export const g_targetDict: Record<string, any> = {
     },
     'rx-matek' : {
         'flashmethod' : 'dfu,ardupilot_passthrough',
-        'description' : description_stm32_dfu_default + description_ardupilot_passthrough_default,
+        'description' : description_stm32_dfu_default + description_passthrough_default,
         'rx-matek-mr900-22' : {
             'flashmethod' : 'stlink,uart,ardupilot_passthrough',
-            'description' : description_stm32_stlink_default + description_stm32_uart_default + description_ardupilot_passthrough_default,
+            'description' : description_stm32_stlink_default + description_stm32_uart_default + description_passthrough_default,
         },
     },
     'rx-R9' : {
         'description' : description_stm32_stlink_default + "mLRS Flasher currently only supports STLink.\nPlease see docs for more details.\n",
         'rx-R9MX-l433cb': {
             'flashmethod' : 'stlink,ardupilot_passthrough',
-            'description' : description_stm32_stlink_default + description_ardupilot_passthrough_default,
+            'description' : description_stm32_stlink_default + description_passthrough_default,
         }
     },
     'rx-E77-MBLKit' : {
@@ -182,7 +182,7 @@ export const g_targetDict: Record<string, any> = {
     },
     'rx-radiomaster' : {
         'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_ardupilot_passthrough_default,
+        'description' : description_esp_esptool_uart_default + description_passthrough_default,
         'rx-radiomaster-br3-900' : { 'chipset' : 'esp8285' },
         'rx-radiomaster-rp4td-2400' : { 'chipset' : 'esp32' },
         'rx-radiomaster-xr1' : { 'chipset' : 'esp32c3' },
@@ -191,29 +191,29 @@ export const g_targetDict: Record<string, any> = {
     'rx-betafpv' : {
         'chipset' : 'esp32',
         'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_ardupilot_passthrough_default,
+        'description' : description_esp_esptool_uart_default + description_passthrough_default,
     },
     'rx-bayck' : {
         'chipset' : 'esp8285',
         'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_ardupilot_passthrough_default,
+        'description' : description_esp_esptool_uart_default + description_passthrough_default,
     },
     'rx-speedybee' : {
         'chipset' : 'esp8285',
         'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_ardupilot_passthrough_default,
+        'description' : description_esp_esptool_uart_default + description_passthrough_default,
     },
     'rx-flysky' : {
         'chipset' : 'esp32s3',
         'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_ardupilot_passthrough_default,
+        'description' : description_esp_esptool_uart_default + description_passthrough_default,
         'rx-flysky-pr02-2400' : {
             'chipset' : 'esp32s3',
         },
     },
     'rx-generic' : {
         'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_ardupilot_passthrough_default,
+        'description' : description_esp_esptool_uart_default + description_passthrough_default,
         'chipset' : 'esp8285',
         'rx-generic-2400-td-pa' : { 'chipset' : 'esp32' },
         'rx-generic-900-td-pa' : { 'chipset' : 'esp32' },
