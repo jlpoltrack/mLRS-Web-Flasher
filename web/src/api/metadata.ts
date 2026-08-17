@@ -143,11 +143,15 @@ export const g_targetDict: Record<string, any> = {
             'reset' : 'no dtr',           // selects plain no-DTR esptool; skips EdgeTX CLI passthrough
             'description' : "Supported radios: AX12\nFlash method: manual radio passthrough\n" +
                 "  - with radio fully powered up, connect to DSC USB port\n" +
+                "  - Click Add Device and select correct serial device\n" +
                 "  - start serial passthrough and bootloader on the radio via Settings->ELRS->Transmitter->ELRS UpdateMode\n" +
+                "  - Click Flash Tx Module\n" +
                 "\nWireless bridge: ESP32C3\n" +
                 "For flashing the wireless bridge:\n" +
                     "  - with radio fully powered up, connect to DSC USB port\n" +
-                    "  - start serial passthrough and bootloader on the radio via Settings->ELRS->Transmitter->UpdateBackpack",
+                    "  - Click Add Device and select correct serial device\n" +
+                    "  - start serial passthrough and bootloader on the radio via Settings->ELRS->Transmitter->UpdateBackpack\n" +
+                    "  - Click Flash Wireless Bridge",
             'wireless' : { 'chipset' : 'esp32c3', 'reset' : 'no dtr', 'baud' : 115200, 'erase' : 'full_erase' },
         },
     },
