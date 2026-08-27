@@ -9,6 +9,7 @@ import { parseHex } from './hexParser';
 import { getPageSize, isKnownChip, FLASH_BASE, MAX_FLASH_SIZE } from './chipConstants';
 import { Stm32UartProtocol } from './stm32UartProtocol';
 import { StlinkDevice, FlashOperations } from './stlink';
+import { isEspNativeUsbPort } from './hardwareService';
 
 
 const resolveAssetPath = (path: string) => {
@@ -318,6 +319,10 @@ async function flashESP(
   const isExternalBridge = !!(options.isWirelessBridge && options.targetType === 'tx' &&
       reset && reset.includes('no dtr'));
 
+  // esp32-c3/s3/c6 native USB: the USB Serial/JTAG peripheral does not support
+  // baud changes, so stay at the ROM baud (esptool skips the change there too)
+  const isNativeUsb = isEspNativeUsbPort(port);
+
   sm.transition('CONNECTING', "Connecting to ESP device...");
 
   if (isExternalBridge) {
@@ -396,7 +401,7 @@ async function flashESP(
     transport: transport,
     // bridge flow must stay at the ROM baud: a baud change would close and
     // reopen the port, resetting the main MCU out of FLASH_ESP mode
-    baudrate: isExternalBridge ? 115200 : baud,
+    baudrate: (isExternalBridge || isNativeUsb) ? 115200 : baud,
     terminal: {
         clean: () => {},
         writeLine: (data: string) => { 

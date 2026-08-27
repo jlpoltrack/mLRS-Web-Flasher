@@ -1,4 +1,4 @@
-import { SERIAL_FILTERS, DFU_USB_FILTERS, SERIAL_VID_FILTERS, SERIAL_VIDPID_FILTERS } from '../constants';
+import { SERIAL_FILTERS, DFU_USB_FILTERS, SERIAL_VID_FILTERS, SERIAL_VIDPID_FILTERS, ESP_NATIVE_USB_VID, ESP_USB_JTAG_SERIAL_PID } from '../constants';
 import { isStlinkDevice } from './stlink';
 
 // hardware service - manages web serial and webusb connections
@@ -166,6 +166,7 @@ export function formatPortName(port: SerialPort): string {
   if (info.usbVendorId === 0x0483 && info.usbProductId === 0x5740) label = "STM32 VCP";
   else if (info.usbVendorId === 0x0483 && info.usbProductId === 0x374E) label = "ST-Link";
   else if (info.usbVendorId === 0x1209) label = "ArduPilot";
+  else if (info.usbVendorId === ESP_NATIVE_USB_VID) label = "ESP32 Native USB";
   
   let display = `${label} (VID:${vid} PID:${pid})`;
   
@@ -174,6 +175,13 @@ export function formatPortName(port: SerialPort): string {
   }
 
   return display;
+}
+
+// true for esp32-c3/s3/c6 builtin USB Serial/JTAG ports (no usb-uart bridge)
+export function isEspNativeUsbPort(port: SerialPort | null): boolean {
+  if (!port) return false;
+  const info = port.getInfo();
+  return info.usbVendorId === ESP_NATIVE_USB_VID && info.usbProductId === ESP_USB_JTAG_SERIAL_PID;
 }
 
 // filter serial ports by flash method using VID/PID rules

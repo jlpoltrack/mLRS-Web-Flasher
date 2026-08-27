@@ -105,7 +105,15 @@ export const SERIAL_FILTERS = [
   { usbVendorId: 0x0403 },                       // FTDI
   { usbVendorId: 0x1A86 },                       // CH340 (WCH)
   { usbVendorId: 0x2E8A },                       // Raspberry Pi (RP2040/RP2350)
+  { usbVendorId: 0x303A },                       // Espressif native USB (ESP32-C3/S3/C6 USB Serial/JTAG)
 ] as const;
+
+/**
+ * espressif native usb: esp32-c3/s3/c6 expose a builtin USB Serial/JTAG port
+ * instead of an external usb-uart bridge
+ */
+export const ESP_NATIVE_USB_VID = 0x303A;
+export const ESP_USB_JTAG_SERIAL_PID = 0x1001;
 
 /**
  * dfu bootloader usb filter (stm32 in dfu mode only)
