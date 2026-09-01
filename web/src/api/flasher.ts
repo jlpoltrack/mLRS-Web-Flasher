@@ -9,6 +9,7 @@ import { parseHex } from './hexParser';
 import { getPageSize, isKnownChip, FLASH_BASE, MAX_FLASH_SIZE } from './chipConstants';
 import { Stm32UartProtocol } from './stm32UartProtocol';
 import { StlinkDevice, FlashOperations } from './stlink';
+import { isEspNativeUsbPort } from './hardwareService';
 
 
 const resolveAssetPath = (path: string) => {
@@ -318,6 +319,10 @@ async function flashESP(
   const isExternalBridge = !!(options.isWirelessBridge && options.targetType === 'tx' &&
       reset && reset.includes('no dtr'));
 
+  // esp32-c3/s3/c6 native USB: the USB Serial/JTAG peripheral does not support
+  // baud changes, so stay at the ROM baud (esptool skips the change there too)
+  const isNativeUsb = isEspNativeUsbPort(port);
+
   sm.transition('CONNECTING', "Connecting to ESP device...");
 
   if (isExternalBridge) {
@@ -371,7 +376,9 @@ async function flashESP(
   const transport = new Transport(port as any);
 
   // disable DTR/RTS for manual bootloader and passthrough modes
-  if ((reset && (reset.includes('no dtr') || reset.includes('no_reset'))) || flashMethod === 'ardupilot_passthrough' || flashMethod === 'inav_passthrough') {
+  const signalsDisabled = !!((reset && (reset.includes('no dtr') || reset.includes('no_reset'))) ||
+      flashMethod === 'ardupilot_passthrough' || flashMethod === 'inav_passthrough');
+  if (signalsDisabled) {
       transport.setDTR = async () => { /* no-op */ };
       transport.setRTS = async () => { /* no-op */ };
   }
@@ -396,7 +403,7 @@ async function flashESP(
     transport: transport,
     // bridge flow must stay at the ROM baud: a baud change would close and
     // reopen the port, resetting the main MCU out of FLASH_ESP mode
-    baudrate: isExternalBridge ? 115200 : baud,
+    baudrate: (isExternalBridge || isNativeUsb) ? 115200 : baud,
     terminal: {
         clean: () => {},
         writeLine: (data: string) => { 
@@ -556,11 +563,17 @@ async function flashESP(
 
     sm.transition('RESETTING', "Flash complete! Resetting device...");
     
-    // Manual Reset Sequence (resets the ESP)
-    await transport.setDTR(false);
-    await transport.setRTS(true);
-    await new Promise(r => setTimeout(r, 500));
-    await transport.setRTS(false);
+    // Manual Reset Sequence (EN pulse; also works over native USB, where the
+    // USB Serial/JTAG peripheral drives EN from the CDC control lines)
+    if (signalsDisabled) {
+        // setDTR/setRTS are no-ops here, so no reset sequence can fire
+        sm.log("Reset the device manually to run the new firmware.");
+    } else {
+        await transport.setDTR(false);
+        await transport.setRTS(true);
+        await new Promise(r => setTimeout(r, 500));
+        await transport.setRTS(false);
+    }
     
     await transport.disconnect();
     

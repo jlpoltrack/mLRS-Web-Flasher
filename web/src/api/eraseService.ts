@@ -6,6 +6,7 @@ import { DFU, DFUse } from 'webdfu';
 import { Stm32UartProtocol } from './stm32UartProtocol';
 import { StlinkDevice, FlashOperations, FLASH_BASE } from './stlink';
 import { FlasherStateMachine } from './flasherStateMachine';
+import { isEspNativeUsbPort } from './hardwareService';
 
 export interface EraseOptions {
   onProgress?: (progress: number, status: string) => void;
@@ -32,9 +33,13 @@ export async function eraseESP(
   // @ts-ignore: ESPLoader types are not perfect
   const transport = new Transport(port as any);
 
+  // native USB (esp32-c3/s3/c6 USB Serial/JTAG): stay at the ROM baud, a baud
+  // change is meaningless there and forces a reopen of a re-enumerating port
+  const isNativeUsb = isEspNativeUsbPort(port);
+
   const esploader = new ESPLoader({
     transport,
-    baudrate: 921600,
+    baudrate: isNativeUsb ? 115200 : 921600,
     terminal: {
       clean: () => {},
       writeLine: (data: string) => {
