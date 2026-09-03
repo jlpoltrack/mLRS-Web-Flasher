@@ -79,3 +79,17 @@
 [data-theme='dark'] .browser-warning-banner {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
 }
+
+/* informational variant: serial works, only DFU/SWD unavailable */
+.browser-warning-banner.partial {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.browser-warning-banner.partial .warning-content h3 {
+  color: #3b82f6;
+}
+
+[data-theme='dark'] .browser-warning-banner.partial {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05));
+}

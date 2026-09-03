@@ -20,7 +20,17 @@ export interface USBDeviceInfo {
 
 // check if web serial and webusb are supported
 export function isSupported(): boolean {
-  return !!(navigator.serial && navigator.usb);
+  return isSerialSupported() && isUSBSupported();
+}
+
+// web serial powers serial flashing, passthrough and the parameter editor
+export function isSerialSupported(): boolean {
+  return !!navigator.serial;
+}
+
+// webusb is only needed for DFU and SWD (ST-Link)
+export function isUSBSupported(): boolean {
+  return !!navigator.usb;
 }
 
 // get currently selected serial port
