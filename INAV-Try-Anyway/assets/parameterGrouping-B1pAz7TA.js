@@ -1,0 +1,1 @@
+function u(r,a){const o=[],e=[],n=[];for(const s of r){const p=a(s);p==="tx"?e.push(s):p==="rx"?n.push(s):o.push(s)}const t=[];return o.length>0&&t.push({title:"Common",params:o}),e.length>0&&t.push({title:"Tx",params:e}),n.length>0&&t.push({title:"Rx",params:n}),t}export{u as g};
