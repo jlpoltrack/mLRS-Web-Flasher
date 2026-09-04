@@ -125,12 +125,19 @@ export class InavPassthroughService {
             this.log("Sending MSP Reboot command to Rx...");
             // magic number 1234321 = 0x0012D591 (little endian: 91 D5 12 00)
             const payload = [0x91, 0xD5, 0x12, 0x00];
-            await this.msp.sendCommand(MSP_REBOOT, payload);
-            this.log("MSP Reboot ACK received.");
+            try {
+                await this.msp.sendCommand(MSP_REBOOT, payload);
+                this.log("MSP Reboot ACK received.");
 
-            // wait for reboot to complete
-            this.log(`Waiting ${REBOOT_WAIT_MS}ms for receiver to reboot...`);
-            await new Promise(r => setTimeout(r, REBOOT_WAIT_MS));
+                // wait for reboot to complete
+                this.log(`Waiting ${REBOOT_WAIT_MS}ms for receiver to reboot...`);
+                await new Promise(r => setTimeout(r, REBOOT_WAIT_MS));
+            } catch (e: any) {
+                // no MSP answer from the Rx (e.g. it already sits in the bootloader
+                // after a bad flash). Don't abort - let the bootloader sync decide.
+                this.log(`MSP Reboot failed: ${e.message}`);
+                this.log("No MSP response from Rx - assuming it is already in bootloader mode (e.g. boot pin/button held) and continuing.");
+            }
         }
 
         await this.close();
