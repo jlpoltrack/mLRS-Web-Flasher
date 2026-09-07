@@ -201,6 +201,7 @@ export const g_targetDict: Record<string, any> = {
         'chipset' : 'esp8285',
         'flashmethod' : 'esptool,ardupilot_passthrough',
         'description' : description_esp_esptool_uart_default + description_passthrough_default,
+        'rx-bayck-ur1000' : { 'chipset' : 'esp32c3' },
     },
     'rx-speedybee' : {
         'chipset' : 'esp8285',
