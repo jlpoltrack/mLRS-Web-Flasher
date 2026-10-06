@@ -115,6 +115,11 @@ export const g_targetDict: Record<string, any> = {
         
             "\nWireless bridge: ESP8285\nFor flashing the wireless bridge:\n" + description_radio_passthru_default,
         'wireless' : { 'chipset' : 'esp8266', 'baud' : 115200 },
+        'tx-jumper-internal-lr1121' : {
+            'description' : "Supported radios: T15 Pro Duo, T22 Duo\nFlash method: radio passthrough\n" + description_radio_passthru_default +
+                "\nWireless bridge: ESP32C3\nFor flashing the wireless bridge:\n" + description_radio_passthru_default,
+            'wireless' : { 'chipset' : 'esp32c3', 'baud' : 115200, 'erase' : 'full_erase' },
+        },
     },
     'tx-radiomaster-internal' : {
         'description' : "Supported radios: TX16S, TX12, MT12, Zorro, Pocket, Boxer\nFlash method: radio passthrough\n" + description_radio_passthru_default +
