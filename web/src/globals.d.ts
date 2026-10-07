@@ -1,5 +1,10 @@
 // global type declarations
 
+// File System Access API directory picker, not yet in the TS DOM lib
+interface Window {
+  showDirectoryPicker?(options?: { id?: string; mode?: 'read' | 'readwrite' }): Promise<FileSystemDirectoryHandle>;
+}
+
 // Extend Navigator interface to include serial and usb
 interface Navigator {
   serial: Serial;
