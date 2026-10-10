@@ -14,6 +14,11 @@ const Tools = lazy(() => import('./components/Tools'));
 const ParameterEditor = lazy(() => import('./components/ParameterEditor'));
 const MavLinkParameterEditor = lazy(() => import('./components/MavLinkParameterEditor'));
 const CliCommands = lazy(() => import('./components/CliCommands'));
+// payloads delivered by the api output and completion callbacks
+type OutputEvent = { type: 'progress'; progress: number } | LogEntry;
+type CompleteEvent = { code?: number | string | null } | null;
+type FlashOptions = Parameters<typeof api.flash>[0];
+
 // SwdTest is hidden from navigation but kept for development use
 // const SwdTest = lazy(() => import('./components/SwdTest'));
 
@@ -89,13 +94,12 @@ function App() {
 
   // listen for python output
   useEffect(() => {
-    const cleanup = api.onOutput((data: any) => {
-      // Data type from backend (callback in webSerialApi)
-      // currently untyped in callback signature, but structure is { type: 'progress'|'log'|LogType, ... }
-      if (data.type === 'progress') {
+    const cleanup = api.onOutput((data: OutputEvent) => {
+      // callback is untyped in webSerialApi, structure is { type: 'progress'|'log'|LogType, ... }
+      if ('progress' in data) {
         setProgress(data.progress);
       } else {
-        addLog(data as LogEntry);
+        addLog(data);
       }
     });
     return cleanup;
@@ -103,7 +107,7 @@ function App() {
 
   // listen for command completion
   useEffect(() => {
-    const cleanup = api.onComplete((data: any) => {
+    const cleanup = api.onComplete((data: CompleteEvent) => {
       setIsFlashing(false);
       setFlashTarget(null);
       if (data && data.code === 0) {
@@ -121,12 +125,12 @@ function App() {
     setLogs([]);
   }, []);
 
-  const handleFlash = useCallback((options: any) => {
+  const handleFlash = useCallback((options: FlashOptions) => {
     // options is loosely typed coming from child components, but should match FlasherOptions args
     // However, handleFlash takes the UI options and passes them to api.flash
 
     setIsFlashing(true);
-    setFlashTarget(options.target || null);
+    setFlashTarget((options.target as BackendTarget) || null);
     setProgress(0);
     addLog({ type: LogType.Info, message: `Starting flash: ${options.filename}` });
     
@@ -203,9 +207,7 @@ function App() {
               );
             case 'lua':
               return (
-                <LuaScript 
-                  versions={versions}
-                />
+                <LuaScript addLog={addLog} />
               );
             case 'parameters':
               return (
