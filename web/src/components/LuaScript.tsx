@@ -1,16 +1,16 @@
 // last updated: 2026-10-09
 import { useState } from 'react';
-import { AlertCircle, CheckCircle2, X } from 'lucide-react';
-import type { Version } from '../types';
+import { LogType } from '../constants';
+import type { LogEntry } from '../types';
 import './panel.css';
 
 interface LuaScriptProps {
-  versions: Version[];
+  addLog: (entry: LogEntry) => void;
 }
 
-interface InstallResult {
-  message: string;
-  ejectReminder: string;
+interface LuaFile {
+  src: string;
+  dest: string;
 }
 
 const LUA_BASE_URL = 'https://cdn.jsdelivr.net/gh/olliw42/mLRS@main/lua/';
@@ -47,12 +47,13 @@ async function findEntryName(dir: FileSystemDirectoryHandle, name: string): Prom
 }
 
 // removes the mLRS.lua variants other than keep (and their .luac) so only one tool is listed
-async function removeOtherToolVariants(root: FileSystemDirectoryHandle, keep: string): Promise<void> {
+// returns the removed paths
+async function removeOtherToolVariants(root: FileSystemDirectoryHandle, keep: string): Promise<string[]> {
   const scriptsName = await findEntryName(root, 'SCRIPTS');
-  if (!scriptsName) return;
+  if (!scriptsName) return [];
   const scripts = await root.getDirectoryHandle(scriptsName);
   const toolsName = await findEntryName(scripts, 'TOOLS');
-  if (!toolsName) return;
+  if (!toolsName) return [];
   const tools = await scripts.getDirectoryHandle(toolsName);
 
   const stale = EDGETX_TOOL_VARIANTS
@@ -64,20 +65,34 @@ async function removeOtherToolVariants(root: FileSystemDirectoryHandle, keep: st
     if (stale.includes(entry.toLowerCase())) names.push(entry);
   }
   for (const name of names) await tools.removeEntry(name);
+  return names.map(name => `${scriptsName}/${toolsName}/${name}`);
 }
 
-// removes stale Ethos 32ch script folder if user previously placed it in scripts/mLRS32Ch
-async function removeStaleEthosScripts(root: FileSystemDirectoryHandle): Promise<void> {
+// removes the old 32ch script (and its .luac) if user previously placed it in scripts/mLRS32Ch
+// returns the removed paths
+async function removeStaleEthosScripts(root: FileSystemDirectoryHandle): Promise<string[]> {
   const scriptsName = await findEntryName(root, 'scripts');
-  if (!scriptsName) return;
+  if (!scriptsName) return [];
   const scripts = await root.getDirectoryHandle(scriptsName);
   const oldDirName = await findEntryName(scripts, 'mLRS32Ch');
-  if (!oldDirName) return;
-  try {
-    await scripts.removeEntry(oldDirName, { recursive: true });
-  } catch {
-    // ignore if locked or not empty
+  if (!oldDirName) return [];
+  const oldDir = await scripts.getDirectoryHandle(oldDirName);
+
+  const stale = ['main.lua', 'main.luac'];
+  const names: string[] = [];
+  const others: string[] = [];
+  for await (const entry of oldDir.keys()) {
+    (stale.includes(entry.toLowerCase()) ? names : others).push(entry);
   }
+  for (const name of names) await oldDir.removeEntry(name);
+  const removed = names.map(name => `${scriptsName}/${oldDirName}/${name}`);
+
+  // drop the folder only if nothing else is left in it
+  if (others.length === 0) {
+    await scripts.removeEntry(oldDirName);
+    removed.push(`${scriptsName}/${oldDirName}`);
+  }
+  return removed;
 }
 
 // writes data to dest below root, creating folders and removing a stale compiled .luac
@@ -100,153 +115,82 @@ async function writeScript(root: FileSystemDirectoryHandle, dest: string, data: 
   }
 }
 
-function LuaScript(props: LuaScriptProps) {
-  void props;
-
+function LuaScript({ addLog }: LuaScriptProps) {
   // EdgeTX/OpenTX mLRS.lua variant to install
   const [edgeTxVariant, setEdgeTxVariant] = useState(EDGETX_TOOL_VARIANTS[0].id);
   const [installingTarget, setInstallingTarget] = useState<'edgetx' | 'ethos' | null>(null);
-  const [installResult, setInstallResult] = useState<InstallResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleInstallEdgeTx = async () => {
-    setError(null);
-    setInstallResult(null);
+  // shared SD card install flow, cleanup runs after all files are written and returns the removed paths
+  const install = async (
+    target: 'edgetx' | 'ethos',
+    label: string,
+    files: LuaFile[],
+    cleanup: (root: FileSystemDirectoryHandle) => Promise<string[]>,
+  ) => {
+    const fail = (message: string) => addLog({ type: LogType.Error, message });
 
     if (!window.showDirectoryPicker) {
-      setError('This browser cannot write to folders. Please use a Chromium-based browser such as Chrome or Edge.');
+      fail('This browser cannot write to folders. Please use a Chromium-based browser such as Chrome or Edge.');
       return;
     }
 
     let root: FileSystemDirectoryHandle;
     try {
-      root = await window.showDirectoryPicker({ id: 'edgetx-sdcard', mode: 'readwrite' });
+      root = await window.showDirectoryPicker({ id: `${target}-sdcard`, mode: 'readwrite' });
     } catch (err: unknown) {
       // user closed the picker
       if (err instanceof DOMException && err.name === 'AbortError') return;
-      const message = err instanceof Error ? err.message : String(err);
-      setError(`Failed to open folder: ${message}`);
+      fail(`Failed to open folder: ${err instanceof Error ? err.message : String(err)}`);
       return;
     }
 
     try {
-      setInstallingTarget('edgetx');
-      const variant = EDGETX_TOOL_VARIANTS.find(v => v.id === edgeTxVariant)!;
-      const scripts = [
-        { src: variant.src, dest: `SCRIPTS/TOOLS/${variant.src}` },
-        ...EDGETX_COMMON_SCRIPTS,
-      ];
+      setInstallingTarget(target);
+      addLog({ type: LogType.Info, message: `Installing ${label} Lua scripts to "${root.name}"...` });
 
       // download everything first so a failed fetch leaves the SD card untouched
-      const contents = await Promise.all(scripts.map(async (script) => {
-        const response = await fetch(LUA_BASE_URL + script.src);
-        if (!response.ok) throw new Error(`Failed to download ${script.src} (${response.status})`);
+      addLog({ type: LogType.Info, message: `Downloading ${files.length} files...` });
+      const contents = await Promise.all(files.map(async (file) => {
+        const response = await fetch(LUA_BASE_URL + file.src);
+        if (!response.ok) throw new Error(`Failed to download ${file.src} (${response.status})`);
         return response.arrayBuffer();
       }));
 
-      for (let i = 0; i < scripts.length; i++) {
-        await writeScript(root, scripts[i].dest, contents[i]);
+      for (let i = 0; i < files.length; i++) {
+        await writeScript(root, files[i].dest, contents[i]);
+        addLog({ type: LogType.Info, message: `Wrote /${files[i].dest}` });
       }
-      await removeOtherToolVariants(root, variant.src);
+      for (const path of await cleanup(root)) {
+        addLog({ type: LogType.Info, message: `Removed /${path}` });
+      }
 
-      setInstallResult({
-        message: `Installed ${scripts.length} scripts to "${root.name}": ${scripts.map(s => '/' + s.dest).join(', ')}.`,
-        ejectReminder: 'Eject / safely remove the SD card before unplugging.',
+      addLog({
+        type: LogType.Success,
+        message: `${label} Lua scripts installed. Eject / safely remove the SD card before unplugging.`,
       });
     } catch (err: unknown) {
-      console.error('Failed to install Lua scripts:', err);
-      const message = err instanceof Error ? err.message : String(err);
-      setError(`Failed to install Lua scripts: ${message}`);
+      console.error(`Failed to install ${label} Lua scripts:`, err);
+      fail(`Failed to install ${label} Lua scripts: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setInstallingTarget(null);
     }
   };
 
-  const handleInstallEthos = async () => {
-    setError(null);
-    setInstallResult(null);
-
-    if (!window.showDirectoryPicker) {
-      setError('This browser cannot write to folders. Please use a Chromium-based browser such as Chrome or Edge.');
-      return;
-    }
-
-    let root: FileSystemDirectoryHandle;
-    try {
-      root = await window.showDirectoryPicker({ id: 'ethos-sdcard', mode: 'readwrite' });
-    } catch (err: unknown) {
-      // user closed the picker
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      const message = err instanceof Error ? err.message : String(err);
-      setError(`Failed to open folder: ${message}`);
-      return;
-    }
-
-    try {
-      setInstallingTarget('ethos');
-      // download everything first so a failed fetch leaves the SD card untouched
-      const contents = await Promise.all(ETHOS_SCRIPTS.map(async (script) => {
-        const response = await fetch(LUA_BASE_URL + script.src);
-        if (!response.ok) throw new Error(`Failed to download ${script.src} (${response.status})`);
-        return response.arrayBuffer();
-      }));
-
-      for (let i = 0; i < ETHOS_SCRIPTS.length; i++) {
-        await writeScript(root, ETHOS_SCRIPTS[i].dest, contents[i]);
-      }
-      await removeStaleEthosScripts(root);
-
-      setInstallResult({
-        message: `Installed ${ETHOS_SCRIPTS.length} files to "${root.name}": ${ETHOS_SCRIPTS.map(s => '/' + s.dest).join(', ')}.`,
-        ejectReminder: 'Eject / safely remove the SD card before unplugging.',
-      });
-    } catch (err: unknown) {
-      console.error('Failed to install Ethos Lua scripts:', err);
-      const message = err instanceof Error ? err.message : String(err);
-      setError(`Failed to install Ethos Lua scripts: ${message}`);
-    } finally {
-      setInstallingTarget(null);
-    }
+  const handleInstallEdgeTx = () => {
+    const variant = EDGETX_TOOL_VARIANTS.find(v => v.id === edgeTxVariant)!;
+    return install(
+      'edgetx',
+      'EdgeTX/OpenTX',
+      [{ src: variant.src, dest: `SCRIPTS/TOOLS/${variant.src}` }, ...EDGETX_COMMON_SCRIPTS],
+      (root) => removeOtherToolVariants(root, variant.src),
+    );
   };
+
+  const handleInstallEthos = () => install('ethos', 'Ethos', ETHOS_SCRIPTS, removeStaleEthosScripts);
 
   return (
     <div className="panel">
       <h2 className="panel-title">Lua Scripts</h2>
-      
-      {error && (
-        <div className="error-box" role="alert">
-          <AlertCircle size={20} style={{ flexShrink: 0, marginTop: '2px' }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <strong>Error:</strong> {error}
-          </div>
-          <button
-            type="button"
-            className="box-close-btn"
-            onClick={() => setError(null)}
-            aria-label="Dismiss error"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
-      {installResult && (
-        <div className="success-box" role="status" aria-live="polite">
-          <CheckCircle2 size={24} style={{ flexShrink: 0, marginTop: '1px', color: '#10b981' }} />
-          <div style={{ flex: 1, minWidth: 0, lineHeight: 1.5 }}>
-            <div>{installResult.message}</div>
-            <div style={{ marginTop: '2px', opacity: 0.9 }}>{installResult.ejectReminder}</div>
-          </div>
-          <button 
-            type="button"
-            className="box-close-btn"
-            onClick={() => setInstallResult(null)}
-            aria-label="Dismiss notification"
-          >
-            <X size={16} />
-          </button>
-        </div>
-      )}
       
       <div className="form-grid">
         {/* EdgeTX/OpenTX SD card install */}
