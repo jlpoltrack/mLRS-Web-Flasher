@@ -36,6 +36,7 @@ export const FlashMethod = {
   ArduPilotPassthrough: 'ardupilot_passthrough',
   InavPassthrough: 'inav_passthrough',
   ELRSBL: 'elrsbl',
+  RxOta: 'rx_ota',
 } as const;
 
 export type FlashMethod = typeof FlashMethod[keyof typeof FlashMethod];
@@ -130,6 +131,7 @@ export const SERIAL_VID_FILTERS: Record<string, number[]> = {
   esptool:    [0x10C4, 0x0403, 0x1A86, 0x303A, 0x2E8A], // + Espressif native USB, Raspberry Pi RP MCUs
   ardupilot_passthrough: [0x1209],                  // ArduPilot
   internal:   [0x0483,0x2E3C],                            // EdgeTX/OpenTX (filtered by PID below)
+  rx_ota:     [0x0483, 0x2E3C, 0x10C4, 0x0403, 0x1A86, 0x303A],   // usb cli of a STM32 Tx module, radio VCP for an internal one, or as for esptool for an ESP32 Tx module
 };
 
 /**

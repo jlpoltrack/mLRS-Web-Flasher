@@ -33,6 +33,11 @@ const description_stm32_stlink_default = "Flash method: STLink\n  - connect SWD 
 const description_stm32_uart_default = "Flash method: UART\n  - connect Tx,Rx pads to USB-TTL adapter\n  - select serial port\n  - power up receiver while pressing the button\n";
 const description_esp_esptool_uart_default = "Flash method: esptool\n  - connect Tx,Rx pads to USB-TTL adapter\n  - select serial port\n  - power up receiver while pressing the button\n";
 const description_passthrough_default = "In addition flashing via ArduPilot or INAV passthrough is supported:\n  - follow the instructions in the console\n  - passthrough flashing with INAV requires INAV version 9.1 or greater\n";
+const description_rx_ota_default = "Updating over the air via a Tx module is supported too:\n  - the receiver must have been flashed once by wire with a firmware which supports OTA\n  - connect the Tx module the receiver is connected to to USB and select its serial port\n  - for an internal Tx module, connect the radio to USB, select 'USB Serial (VCP)', and restart the radio afterwards\n  - if an update fails, keep the receiver powered and flash again\n  - or, with firmware newer than v1.4.05, click 'Download OTA', copy the .ota file to /FIRMWARE on the radio's SD card, and update with the mLRS-RxUpdate Lua script\n";
+const description_rx_ota_esp8285 = description_rx_ota_default + "  - an ESP8285 receiver unpacks the new firmware at its reboot and has no way back, keep it powered until it is connected again\n";
+const flashmethod_esp_rx = 'esptool,ardupilot_passthrough,rx_ota';
+const description_esp32_rx = description_esp_esptool_uart_default + description_passthrough_default + description_rx_ota_default;
+const description_esp8285_rx = description_esp_esptool_uart_default + description_passthrough_default + description_rx_ota_esp8285;
 const description_radio_passthru_default = "  - with radio powered up, connect to USB of your radio\n  - select 'USB Serial (VCP)'\n";
 
 export const g_targetDict: Record<string, any> = {
@@ -177,6 +182,14 @@ export const g_targetDict: Record<string, any> = {
             'flashmethod' : 'stlink,uart,ardupilot_passthrough',
             'description' : description_stm32_stlink_default + description_stm32_uart_default + description_passthrough_default,
         },
+        'rx-matek-mr900-30' : { // also matches mr900-30c
+            'flashmethod' : 'dfu,ardupilot_passthrough,rx_ota',
+            'description' : description_stm32_dfu_default + description_passthrough_default + description_rx_ota_default,
+        },
+        'rx-matek-mr24-30' : { // also matches mr24-30c
+            'flashmethod' : 'dfu,ardupilot_passthrough,rx_ota',
+            'description' : description_stm32_dfu_default + description_passthrough_default + description_rx_ota_default,
+        },
     },
     'rx-R9' : {
         'description' : description_stm32_stlink_default + "mLRS Flasher currently only supports STLink.\nPlease see docs for more details.\n",
@@ -194,46 +207,47 @@ export const g_targetDict: Record<string, any> = {
     'rx-easysolder' : {
         'description' : description_stm32_stlink_default,
     },
+    // all ESP receivers can be updated over the air, an ESP8285 has no way back, so it gets its own note
     'rx-radiomaster' : {
-        'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_passthrough_default,
-        'rx-radiomaster-br3-900' : { 'chipset' : 'esp8285' },
+        'flashmethod' : flashmethod_esp_rx,
+        'description' : description_esp32_rx,
+        'rx-radiomaster-br3-900' : { 'chipset' : 'esp8285', 'description' : description_esp8285_rx },
         'rx-radiomaster-rp4td-2400' : { 'chipset' : 'esp32' },
         'rx-radiomaster-xr1' : { 'chipset' : 'esp32c3' },
         'rx-radiomaster-xr4' : { 'chipset' : 'esp32' },
     },
     'rx-betafpv' : {
         'chipset' : 'esp32',
-        'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_passthrough_default,
+        'flashmethod' : flashmethod_esp_rx,
+        'description' : description_esp32_rx,
     },
     'rx-bayck' : {
         'chipset' : 'esp8285',
-        'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_passthrough_default,
-        'rx-bayck-ur1000' : { 'chipset' : 'esp32c3' },
+        'flashmethod' : flashmethod_esp_rx,
+        'description' : description_esp8285_rx,
+        'rx-bayck-ur1000' : { 'chipset' : 'esp32c3', 'description' : description_esp32_rx },
     },
     'rx-speedybee' : {
         'chipset' : 'esp8285',
-        'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_passthrough_default,
+        'flashmethod' : flashmethod_esp_rx,
+        'description' : description_esp8285_rx,
     },
     'rx-flysky' : {
         'chipset' : 'esp32s3',
-        'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_passthrough_default,
+        'flashmethod' : flashmethod_esp_rx,
+        'description' : description_esp32_rx,
         'rx-flysky-pr02-2400' : {
             'chipset' : 'esp32s3',
         },
     },
     'rx-generic' : {
-        'flashmethod' : 'esptool,ardupilot_passthrough',
-        'description' : description_esp_esptool_uart_default + description_passthrough_default,
         'chipset' : 'esp8285',
-        'rx-generic-2400-td-pa' : { 'chipset' : 'esp32' },
-        'rx-generic-900-td-pa' : { 'chipset' : 'esp32' },
-        'rx-generic-c3' : { 'chipset' : 'esp32c3' },
-        'rx-generic-lr1121-td' : { 'chipset' : 'esp32' },
+        'flashmethod' : flashmethod_esp_rx,
+        'description' : description_esp8285_rx,
+        'rx-generic-2400-td-pa' : { 'chipset' : 'esp32', 'description' : description_esp32_rx },
+        'rx-generic-900-td-pa' : { 'chipset' : 'esp32', 'description' : description_esp32_rx },
+        'rx-generic-c3' : { 'chipset' : 'esp32c3', 'description' : description_esp32_rx },
+        'rx-generic-lr1121-td' : { 'chipset' : 'esp32', 'description' : description_esp32_rx },
     },
 };
 

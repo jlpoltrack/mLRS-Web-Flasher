@@ -6,6 +6,7 @@ import { api } from '../api/webSerialApi';
 import { findPortByName } from '../api/hardwareService';
 import { InavPassthroughService, type MspPort } from '../api/inavPassthrough';
 import { ArduPilotPassthroughService, type ArduPilotSerialPort } from '../api/ardupilotPassthrough';
+import { buildOtaFile } from '../api/rxOta';
 import type { Version } from '../types';
 import { FlashMethod, TargetType, BackendTarget, DEFAULT_FLASH_METHOD } from '../constants';
 import './panel.css';
@@ -18,6 +19,15 @@ import './panel.css';
 const SERIAL_PORTS = ['SERIAL1', 'SERIAL2', 'SERIAL3', 'SERIAL4', 'SERIAL5', 'SERIAL6', 'SERIAL7', 'SERIAL8'];
 
 // maps raw flash method values to user-friendly labels
+// firmware of the repository can go onto the SD card as ota image file only if newer than this
+const OTA_FILE_MIN_VERSION = 10405; // v1.4.05
+
+// version of a firmware file as number, e.g. rx-...-v1.4.06-@1234abcd.hex gives 10406, 0 if there is none
+function firmwareFileVersion(filename: string): number {
+  const m = filename.match(/-v(\d+)\.(\d+)\.(\d+)/i);
+  return m ? Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]) : 0;
+}
+
 function getFlashMethodLabel(m: string): string {
   if (m === FlashMethod.DFU) return 'DFU (USB)';
   if (m === FlashMethod.STLink) return 'STLink (SWD)';
@@ -25,6 +35,7 @@ function getFlashMethodLabel(m: string): string {
   if (m === FlashMethod.ESPTool) return 'ESPTool (UART)';
   if (m === FlashMethod.ArduPilotPassthrough) return 'ArduPilot Passthrough';
   if (m === FlashMethod.InavPassthrough) return 'INAV Passthrough';
+  if (m === FlashMethod.RxOta) return 'OTA via Tx Module';
   return m;
 }
 
@@ -71,6 +82,7 @@ function FirmwareFlasherPanel({
   const [localBridgeFileData, setLocalBridgeFileData] = useState<ArrayBuffer | null>(null);
   const [localBridgeChipset, setLocalBridgeChipset] = useState<string>('esp8266');
   const [localChipset, setLocalChipset] = useState<string>('esp32');
+  const [isBuildingOta, setIsBuildingOta] = useState(false);
 
   // inav passthrough state
   const [mspPorts, setMspPorts] = useState<MspPort[]>([]);
@@ -335,7 +347,7 @@ function FirmwareFlasherPanel({
     }
 
     // check for port requirement
-    const needsPort = (flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough || metadata?.needsPort);
+    const needsPort = (flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough || flashMethod === FlashMethod.RxOta || metadata?.needsPort);
     
     if (needsPort && !selectedPort) {
       setError('Please select a serial port first.');
@@ -389,6 +401,41 @@ function FirmwareFlasherPanel({
       chipset: (useLocalFile && (targetType === TargetType.TxInternal || (targetType === TargetType.Receiver && (flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough)))) ? localChipset : undefined,
     });
   }, [firmwareFiles, selectedFile, flashMethod, selectedDevice, selectedVersion, selectedPort, selectedUSBDevice, selectedStlink, serialX, targetUartIndex, mspPorts, setError, onFlash, targetType, metadata, useLocalFile, localFile, localFileData, localChipset, setFlashMethod]);
+
+  // makes the receiver image file for the radio's SD card and hands it to the browser as download
+  const handleDownloadOta = useCallback(async () => {
+    setError(null);
+    setIsBuildingOta(true);
+    try {
+      let filename: string;
+      let data: ArrayBuffer;
+      if (useLocalFile) {
+        if (!localFile || !localFileData) throw new Error('Please select a local firmware file first.');
+        filename = localFile.name;
+        data = localFileData;
+      } else {
+        const file = firmwareFiles.find(f => f.filename === selectedFile);
+        if (!file) throw new Error('Please select a firmware file first.');
+        const response = await fetch(file.url);
+        if (!response.ok) throw new Error(`Failed to download ${file.filename} (${response.status})`);
+        filename = file.filename;
+        data = await response.arrayBuffer();
+      }
+
+      const ota = await buildOtaFile(data, filename);
+      const url = URL.createObjectURL(new Blob([new Uint8Array(ota)], { type: 'application/octet-stream' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename.replace(/\.[^.]+$/, '') + '.ota';
+      a.click();
+      // delay cleanup so the browser captures the download
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err: unknown) {
+      setError(`Download OTA failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsBuildingOta(false);
+    }
+  }, [useLocalFile, localFile, localFileData, firmwareFiles, selectedFile, setError]);
 
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>, isBridge = false) => {
     const file = e.target.files?.[0];
@@ -526,6 +573,7 @@ function FirmwareFlasherPanel({
     if (targetType === TargetType.Receiver) {
       methods.push({ value: FlashMethod.ArduPilotPassthrough, label: 'ArduPilot Passthrough' });
       methods.push({ value: FlashMethod.InavPassthrough, label: 'INAV Passthrough' });
+      methods.push({ value: FlashMethod.RxOta, label: 'OTA via Tx Module' });
     }
     return methods;
   }, [targetType]);
@@ -546,6 +594,14 @@ function FirmwareFlasherPanel({
 
   const flashButtonLabel = targetType === TargetType.Receiver ? 'Flash Receiver' : 'Flash Tx Module';
   const flashBackendTarget = targetType === TargetType.Receiver ? BackendTarget.Receiver : BackendTarget.TxModule;
+
+  // ota image file for the radio's SD card, needs no device, only a firmware which can go over the air
+  // a local file is taken as it is, firmware of the repository must be for an ota receiver and new enough
+  const showDownloadOta = targetType === TargetType.Receiver && (useLocalFile ||
+    (!!metadata?.raw_flashmethod?.split(',').includes(FlashMethod.RxOta) && firmwareFileVersion(selectedFile || '') > OTA_FILE_MIN_VERSION));
+  const otaHasFile = useLocalFile ? !!localFileData : (!!selectedFile && firmwareFiles.length > 0 && !isLoadingFiles);
+  const otaDisabled = isFlashing || isBuildingOta || !otaHasFile;
+  const otaTooltip = isFlashing ? 'Flashing in progress' : !otaHasFile ? (useLocalFile ? 'Select a local file first' : 'Select a firmware file first') : 'Download the image file for the radio\'s SD card';
 
   // shared device-selector row helpers; closures capture component state
   const renderSerialPortRow = (
@@ -596,6 +652,19 @@ function FirmwareFlasherPanel({
               {isFlashing && flashTarget === flashBackendTarget ?
                 (progress > 0 ? `Flashing... ${progress}%` : 'Flashing...') :
                 flashButtonLabel}
+            </button>
+          </div>
+        )}
+
+        {showDownloadOta && !hideFlashButton && (
+          <div title={otaTooltip}>
+            <button
+              className="btn-primary btn-flash"
+              onClick={handleDownloadOta}
+              disabled={otaDisabled}
+              aria-label="Download OTA image file"
+            >
+              {isBuildingOta ? 'Preparing...' : 'Download OTA'}
             </button>
           </div>
         )}
@@ -675,6 +744,19 @@ function FirmwareFlasherPanel({
           </button>
         </div>
 
+        {showDownloadOta && (
+          <div title={otaTooltip}>
+            <button
+              className="btn-primary btn-flash"
+              onClick={handleDownloadOta}
+              disabled={otaDisabled}
+              aria-label="Download OTA image file"
+            >
+              {isBuildingOta ? 'Preparing...' : 'Download OTA'}
+            </button>
+          </div>
+        )}
+
         {isFlashing && (
           <button
             className="btn-secondary btn-cancel"
@@ -747,6 +829,19 @@ function FirmwareFlasherPanel({
               flashButtonLabel}
           </button>
         </div>
+
+        {showDownloadOta && (
+          <div title={otaTooltip}>
+            <button
+              className="btn-primary btn-flash"
+              onClick={handleDownloadOta}
+              disabled={otaDisabled}
+              aria-label="Download OTA image file"
+            >
+              {isBuildingOta ? 'Preparing...' : 'Download OTA'}
+            </button>
+          </div>
+        )}
 
         {isFlashing && (
           <button
@@ -878,7 +973,7 @@ function FirmwareFlasherPanel({
       )}
 
       {/* device selectors */}
-      {(flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough) &&
+      {(flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough || flashMethod === FlashMethod.RxOta) &&
         renderSerialPortRow(
           isFlashing || !localFileData || !selectedPort,
           !localFile ? 'Select a local file first' : !selectedPort ? 'Select a serial port first' : isFlashing ? 'Flashing in progress' : undefined
@@ -1116,7 +1211,7 @@ function FirmwareFlasherPanel({
               )}
 
               {/* serial port selection — shown for serial-based methods; r9 only shows port for passthrough */}
-              {(flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough) && (!isFrSkyR9 || (isFrSkyR9 && (flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough))) &&
+              {(flashMethod === FlashMethod.UART || flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough || flashMethod === FlashMethod.RxOta) && (!isFrSkyR9 || (isFrSkyR9 && (flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough))) &&
                 renderSerialPortRow(
                   isFlashing || !selectedFile || firmwareFiles.length === 0 || isLoadingFiles || !selectedPort,
                   isFlashing ? 'Flashing in progress' : !selectedFile || firmwareFiles.length === 0 ? 'Select a firmware file first' : isLoadingFiles ? 'Loading firmware files...' : !selectedPort ? 'Select a serial port first' : undefined,
