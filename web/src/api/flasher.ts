@@ -149,7 +149,9 @@ export async function flash(
         }
         const result = await initArduPilotPassthrough(port as SerialPort, options.passthroughSerial, true, onLog);
         port = result.port;
-        // ESP always forced to 115200 by initArduPilotPassthrough logic
+        // stay at the ROM baud: a higher rate relies on the FC mirroring the USB
+        // baud to the receiver UART mid-session, which is not reliable on all boards
+        options.baud = 115200;
      } else if (flashMethod === 'inav_passthrough') {
         if (options.passthroughIdentifier === undefined) {
             throw new Error("Target UART not specified for INAV Passthrough");
