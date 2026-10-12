@@ -92,13 +92,13 @@ declare module 'node-mavlink' {
             targetComponent: number;
             command: number;
             confirmation: number;
-            param1: number;
-            param2: number;
-            param3: number;
-            param4: number;
-            param5: number;
-            param6: number;
-            param7: number;
+            _param1: number;
+            _param2: number;
+            _param3: number;
+            _param4: number;
+            _param5: number;
+            _param6: number;
+            _param7: number;
         }
 
         export class CommandAck extends MavLinkData {
