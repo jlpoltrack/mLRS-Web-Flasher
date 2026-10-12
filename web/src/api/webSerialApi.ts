@@ -4,7 +4,7 @@
 import { githubApi } from './githubApi';
 import { flash } from './flasher';
 import type { FlasherOptions } from './flasher';
-import type { FirmwareFile } from '../types';
+import type { FirmwareFile, FirmwareMetadata, FlashOptions, OutputEvent } from '../types';
 import {
   getSelectedPort,
   getSelectedUSBDevice,
@@ -12,7 +12,7 @@ import {
   findUSBDeviceByName,
 } from './hardwareService';
 
-let outputCallback: ((data: any) => void) | null = null;
+let outputCallback: ((data: OutputEvent) => void) | null = null;
 
 export const api = {
   // GitHub Data Layer - pass-through to githubApi
@@ -84,38 +84,20 @@ export const api = {
         }, 1000);
       }
       outputCallback?.({ type: 'success', message: 'Download complete! Please check your browser downloads.' });
-    } catch (err: any) {
-      outputCallback?.({ type: 'error', message: `Failed to download Lua: ${err.message}` });
+    } catch (err) {
+      outputCallback?.({ type: 'error', message: `Failed to download Lua: ${err instanceof Error ? err.message : String(err)}` });
       throw err;
     }
   },
 
   // flashing orchestration
-  flash: async (options: { 
-    filename: string, 
-    version: string,
-    port?: string,
-    usbDeviceName?: string,
-    firmwareData?: ArrayBuffer,
-    type: string,
-    device: string,
-    flashMethod?: string,
-    passthroughSerial?: string,
-    passthroughIdentifier?: number,
-    baudrate?: number,
-    target?: string,
-    reset?: string,
-    url?: string,
-    erase?: string,
-    activationBaud?: number,
-    chipset?: string
-  }): Promise<void> => { 
+  flash: async (options: FlashOptions): Promise<void> => { 
     const { type, device, filename } = options;
 
     // in local file mode (firmwareData provided), infer chipset from flash method
     // instead of fetching metadata for a possibly stale device selection
     let chipset: string;
-    let metadata: any = null;
+    let metadata: FirmwareMetadata | null = null;
     if (options.chipset) {
       // explicit chipset provided (e.g. wireless bridge flash, local file with mcu selector)
       chipset = options.chipset;
@@ -183,8 +165,8 @@ export const api = {
 
     if (chipset === 'stm32' && (flashmethod === 'dfu' || flashmethod === 'stlink')) {
       // for USB-based methods (DFU, ST-Link), port argument might already be the USBDevice object
-      if (options.port && typeof options.port !== 'string' && 'vendorId' in (options.port as any)) {
-          return flash(options.port as unknown as USBDevice, data, flasherOptions);
+      if (options.port && typeof options.port !== 'string' && 'vendorId' in options.port) {
+          return flash(options.port, data, flasherOptions);
       }
 
       // use selected usb device or find by name
@@ -196,7 +178,7 @@ export const api = {
       return flash(activeDevice, data, flasherOptions);
     } else {
       // use selected port or find by name
-      const activePort = getSelectedPort() || await findPortByName(options.port || '');
+      const activePort = getSelectedPort() || await findPortByName(typeof options.port === 'string' ? options.port : '');
       if (!activePort) throw new Error(`No serial port selected or found matching "${options.port}". Please select a port first.`);
       return flash(activePort, data, flasherOptions);
     }
@@ -208,12 +190,12 @@ export const api = {
     outputCallback?.({ type: 'info', message: 'Cancel is not yet supported in the web version.' });
   },
   
-  onOutput: (callback: (data: any) => void) => {
+  onOutput: (callback: (data: OutputEvent) => void) => {
     outputCallback = callback;
     return () => { outputCallback = null; };
   },
   
-  onComplete: (_callback: (data: any) => void) => {
+  onComplete: (_callback: (data: { code?: number | string | null } | null) => void) => {
     return () => {};
   },
 };

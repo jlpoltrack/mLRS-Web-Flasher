@@ -25,7 +25,7 @@ export class Stm32UartProtocol {
         
         try {
             await this.serial.connect({ baudRate: 115200, parity: 'even', stopBits: 1 });
-        } catch (e) {
+        } catch {
             this.onLog?.("Connection might already be active or failed, checking sync...");
         }
         
@@ -51,8 +51,8 @@ export class Stm32UartProtocol {
                 } else {
                     this.onLog?.(`[RX] Unknown 0x${resp[0].toString(16)} (trying again)`);
                 }
-            } catch (e: any) {
-                this.onLog?.(`Sync attempt ${attempt} failed: ${e.message}`);
+            } catch (e) {
+                this.onLog?.(`Sync attempt ${attempt} failed: ${e instanceof Error ? e.message : e}`);
             }
             
             await new Promise(r => setTimeout(r, 500));

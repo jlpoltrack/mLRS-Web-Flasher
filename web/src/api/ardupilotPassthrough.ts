@@ -63,7 +63,7 @@ export class ArduPilotPassthroughService {
     async disconnect(): Promise<void> {
         try {
             await this.mav.disconnect();
-        } catch (e) {
+        } catch {
             // ignore disconnect errors
         }
     }
@@ -184,7 +184,7 @@ export async function initArduPilotPassthrough(
             // assume we always need to force bootloader mode for ESP
             if (protocol !== 28) {
                  onLog?.(`ESP: Setting ${pProtocolName} -> 28 (Scripting)...`);
-                 try { await mav.paramSet(pProtocolName, 28); } catch(e) {}
+                 try { await mav.paramSet(pProtocolName, 28); } catch { /* ignore */ }
 
                  onLog?.("---------------------------------------------------");
                  onLog?.("1. Power down the flight controller.");
@@ -205,7 +205,7 @@ export async function initArduPilotPassthrough(
                          await activePort.close();
                          // if open worked, device is still here.
                          await new Promise(r => setTimeout(r, 500));
-                     } catch (e) {
+                     } catch {
                          onLog?.("Flight controller disconnected.");
                          disconnected = true;
                          break;
@@ -219,14 +219,14 @@ export async function initArduPilotPassthrough(
                  onLog?.("Scanning for Reconnection (Active)...");
 
                  let reconnectedMav: MavLinkConnection | null = null;
-                 let reconnectedPort: any = null;
+                 let reconnectedPort: SerialPort | null = null;
                  const startTime = Date.now();
 
                  // 60s reconnect loop
                  while (Date.now() - startTime < 60000) {
                      // refresh candidates
-                     const allPorts = await (navigator.serial as any).getPorts();
-                     const freshCandidates = allPorts.filter((p: any) => {
+                     const allPorts = await navigator.serial.getPorts();
+                     const freshCandidates = allPorts.filter(p => {
                          const i = p.getInfo();
                          return i.usbVendorId === targetVid && i.usbProductId === targetPid;
                      });
@@ -244,7 +244,7 @@ export async function initArduPilotPassthrough(
                                  break;
                              }
                              await m.disconnect();
-                         } catch(e) {
+                         } catch {
                             await m.disconnect().catch(() => {});
                         }
                      }
@@ -252,7 +252,7 @@ export async function initArduPilotPassthrough(
                      await new Promise(r => setTimeout(r, 500));
                  }
 
-                 if (!reconnectedMav) throw new Error("Timed out waiting for flight controller reconnection.");
+                 if (!reconnectedMav || !reconnectedPort) throw new Error("Timed out waiting for flight controller reconnection.");
 
                  mav = reconnectedMav;
                  activePort = reconnectedPort;

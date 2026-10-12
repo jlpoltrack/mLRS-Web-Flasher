@@ -12,7 +12,7 @@ import {
   requestUSBDevice,
   filterPortsByMethod,
 } from '../api/hardwareService';
-import type { FirmwareFile } from '../types';
+import type { FirmwareFile, FirmwareMetadata } from '../types';
 
 /**
  * custom hook for loading firmware files and metadata
@@ -21,7 +21,7 @@ import type { FirmwareFile } from '../types';
 export function useFirmwareLoader(type: string, selectedDevice: string, selectedVersion: string) {
   const [firmwareFiles, setFirmwareFiles] = useState<FirmwareFile[]>([]);
   const [selectedFile, setSelectedFile] = usePersistentState(`flasher_${type}_selectedFile`, '');
-  const [metadata, setMetadata] = useState<any>(null);
+  const [metadata, setMetadata] = useState<FirmwareMetadata | null>(null);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -54,10 +54,10 @@ export function useFirmwareLoader(type: string, selectedDevice: string, selected
       
       if (files.length > 0) {
         // Only set default if current selected file is not in the list or is empty
-        const currentFileExists = files.find((f: FirmwareFile) => f.filename === selectedFile);
-        if (!selectedFile || !currentFileExists) {
-            setSelectedFile(files[0].filename);
-        }
+        setSelectedFile(current => {
+          const currentFileExists = files.find((f: FirmwareFile) => f.filename === current);
+          return !current || !currentFileExists ? files[0].filename : current;
+        });
       } else {
         setSelectedFile('');
       }
@@ -72,7 +72,7 @@ export function useFirmwareLoader(type: string, selectedDevice: string, selected
         setIsLoadingFiles(false);
       }
     }
-  }, [type, selectedDevice, selectedVersion]);
+  }, [type, selectedDevice, selectedVersion, setSelectedFile]);
 
   // load metadata when file selection changes
   const loadMetadata = useCallback(async () => {
@@ -185,7 +185,7 @@ export function useSerialPorts(isPaused = false, flashMethod = '', targetType = 
         setIsScanningPorts(false);
       }
     }
-  }, []);
+  }, [setSelectedPort]);
 
   // initial port refresh on mount
   useEffect(() => {
@@ -291,8 +291,8 @@ export function useUSBDevices(_isPaused = false) {
       const newDevices = result.devices || [];
       setUsbDevices(newDevices);
       
-      if (newDevices.length > 0 && !selectedUSBDevice) {
-        setSelectedUSBDevice(newDevices[0]);
+      if (newDevices.length > 0) {
+        setSelectedUSBDevice(current => current || newDevices[0]);
       }
     } catch (err) {
       console.error('Failed to list USB devices:', err);
@@ -301,7 +301,7 @@ export function useUSBDevices(_isPaused = false) {
         setIsScanningUSB(false);
       }
     }
-  }, []);
+  }, [setSelectedUSBDevice]);
 
   // initial refresh
   useEffect(() => {
@@ -320,7 +320,7 @@ export function useUSBDevices(_isPaused = false) {
 /**
  * custom hook for managing default selections
  */
-export function useDefaultSelection(items: any[], currentValue: any, setValue: (val: any) => void, extractValue = (item: any) => item) {
+export function useDefaultSelection<T>(items: T[], currentValue: string, setValue: (val: string) => void, extractValue: (item: T) => string = String) {
   useEffect(() => {
     if (items.length > 0 && !currentValue) {
       setValue(extractValue(items[0]));

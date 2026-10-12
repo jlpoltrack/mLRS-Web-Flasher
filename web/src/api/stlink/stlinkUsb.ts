@@ -419,7 +419,7 @@ export async function requestStlinkDevice(): Promise<USBDevice | null> {
     }
     const device = await navigator.usb.requestDevice(getStlinkFilters());
     return device;
-  } catch (e) {
+  } catch {
     // user cancelled or no device selected
     return null;
   }

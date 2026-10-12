@@ -152,7 +152,7 @@ export class MavLinkConnection {
             // deserialization: convert raw bytes to typed objects
             const clazz = REGISTRY[packet.header.msgid];
             if (clazz && packet.protocol) {
-                packet.payload = packet.protocol.data(packet.payload, clazz);
+                packet.payload = packet.protocol.data(packet.payload as Uint8Array, clazz);
             }
 
             // push to queue (cap size to prevent memory leaks from idle connections)
@@ -237,7 +237,7 @@ export class MavLinkConnection {
             // poll queue for matching PARAM_VALUE (ArduPilot also broadcasts unsolicited ones, e.g. STAT_RUNTIME)
             const pkt = await this.waitForPacket(22, timeoutMs, this.isParamValueFor(paramId));
             if (pkt) {
-                const payload: common.ParamValue = pkt.payload; // type checked by predicate
+                const payload = pkt.payload as common.ParamValue; // type checked by predicate
                 return payload.paramValue;
             }
 

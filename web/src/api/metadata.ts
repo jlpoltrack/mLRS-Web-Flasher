@@ -1,4 +1,26 @@
-export const g_txModuleExternalDeviceTypeDict: Record<string, any> = {
+import type { WirelessBridgeConfig } from '../types';
+
+export interface DeviceTypeEntry {
+    fname: string;
+    chipset: string;
+}
+
+export interface TargetOptions {
+    flashmethod?: string;
+    description?: string;
+    chipset?: string;
+    wireless?: WirelessBridgeConfig;
+    erase?: string;
+    reset?: string;
+}
+
+// target defaults, plus per-filename sub-model overrides keyed by filename fragment
+// lookups by filename fragment can also land on 'wireless', so values cover both shapes
+export interface TargetEntry extends TargetOptions {
+    [subModel: string]: string | (TargetOptions & WirelessBridgeConfig) | undefined;
+}
+
+export const g_txModuleExternalDeviceTypeDict: Record<string, DeviceTypeEntry> = {
     'MatekSys' :       { 'fname' : 'tx-matek',       'chipset' : 'stm32' },
     'FrSky R9' :       { 'fname' : 'tx-R9',          'chipset' : 'stm32' },
     'Wio E5' :         { 'fname' : 'tx-Wio-E5',      'chipset' : 'stm32' },
@@ -8,7 +30,7 @@ export const g_txModuleExternalDeviceTypeDict: Record<string, any> = {
     'BetaFPV' :        { 'fname' : 'tx-betafpv',     'chipset' : 'esp32' },
 };
 
-export const g_receiverDeviceTypeDict: Record<string, any> = {
+export const g_receiverDeviceTypeDict: Record<string, DeviceTypeEntry> = {
     'MatekSys' :       { 'fname' : 'rx-matek',       'chipset' : 'stm32' },
     'FrSky R9' :       { 'fname' : 'rx-R9',          'chipset' : 'stm32' },
     'Wio E5' :         { 'fname' : 'rx-Wio-E5',      'chipset' : 'stm32' },
@@ -22,7 +44,7 @@ export const g_receiverDeviceTypeDict: Record<string, any> = {
     'ELRS Generic' :   { 'fname' : 'rx-generic',     'chipset' : 'espxx' },
 };
 
-export const g_txModuleInternalDeviceTypeDict: Record<string, any> = {
+export const g_txModuleInternalDeviceTypeDict: Record<string, DeviceTypeEntry> = {
     'Jumper Radio' :      { 'fname' : 'tx-jumper-internal',      'chipset' : 'esp32' },
     'RadioMaster Radio' : { 'fname' : 'tx-radiomaster-internal', 'chipset' : 'esp32' },
     'FlySky Radio' :      { 'fname' : 'tx-flysky-internal',      'chipset' : 'esp32s3' },
@@ -35,7 +57,7 @@ const description_esp_esptool_uart_default = "Flash method: esptool\n  - connect
 const description_passthrough_default = "In addition flashing via ArduPilot or INAV passthrough is supported:\n  - follow the instructions in the console\n  - passthrough flashing with INAV requires INAV version 9.1 or greater\n";
 const description_radio_passthru_default = "  - with radio powered up, connect to USB of your radio\n  - select 'USB Serial (VCP)'\n";
 
-export const g_targetDict: Record<string, any> = {
+export const g_targetDict: Record<string, TargetEntry> = {
     'tx-matek' : {
         'flashmethod' : 'dfu',
         'description' : description_stm32_dfu_default + "\nWireless bridge: HC04, cannot be flashed\n",
@@ -242,7 +264,7 @@ export const REPOSITORY_TREE_URL = 'https://api.github.com/repos/olliw42/mLRS/gi
 export const MAIN_BRANCH_TREE_URL = 'https://api.github.com/repos/olliw42/mLRS/git/trees/main';
 export const WIRELESSBRIDGE_PATH_URL = 'https://raw.githubusercontent.com/olliw42/mLRS/refs/heads/main/firmware/wirelessbridge/';
 
-export function resolveChipset(deviceDict: any, targetDict: any, filename: string): string {
+export function resolveChipset(deviceDict: Partial<DeviceTypeEntry>, targetDict: TargetEntry, filename: string): string {
     let chipset = deviceDict.chipset || 'stm32';
     
     if (targetDict.chipset) {
@@ -263,10 +285,10 @@ export function resolveChipset(deviceDict: any, targetDict: any, filename: strin
 }
 
 export function getDeviceInfo(deviceName: string, deviceType?: string) {
-    let deviceDict: any = {};
-    let targetDict: any = {};
+    let deviceDict: Partial<DeviceTypeEntry> = {};
+    let targetDict: TargetEntry = {};
     
-    let dictsToSearch: any[] = [];
+    let dictsToSearch: Record<string, DeviceTypeEntry>[] = [];
     if (deviceType === 'tx') {
         dictsToSearch = [g_txModuleExternalDeviceTypeDict];
     } else if (deviceType === 'rx') {

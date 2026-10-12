@@ -1,7 +1,7 @@
 // MAVLink parameter protocol service for mLRS component
 // handles param list/read/set/store via the standard MAVLink parameter microservice
 
-import { common } from 'node-mavlink';
+import { common, minimal } from 'node-mavlink';
 import { MavLinkConnection } from './mavlinkConnection';
 
 // mLRS component identification
@@ -129,7 +129,7 @@ export async function connectToMlrs(
         const pkt = await mav.waitForPacket(0, 2000); // any heartbeat
         if (!pkt) continue;
 
-        const hb = pkt.payload as any;
+        const hb = pkt.payload as minimal.Heartbeat;
         onLog?.(`HEARTBEAT from sysid=${pkt.header.sysid} compid=${pkt.header.compid} autopilot=${hb.autopilot} type=${hb.type}`);
 
         if (pkt.header.compid === MAV_COMP_ID_TELEMETRY_RADIO) {
@@ -148,7 +148,7 @@ export async function connectToMlrs(
         );
     }
 
-    const hb = packet.payload as any;
+    const hb = packet.payload as minimal.Heartbeat;
     onLog?.(`mLRS HEARTBEAT (sysid=${packet.header.sysid}, compid=${packet.header.compid}, type=${hb.type})`);
 
     // set target IDs for subsequent messages
@@ -190,10 +190,10 @@ export async function requestAllParams(
         }
         noResponseCount = 0;
 
-        const payload = pkt.payload as any;
+        const payload = pkt.payload as common.ParamValue;
         const param: MavParam = {
             index: payload.paramIndex,
-            paramId: (payload.paramId as string).replace(/\0/g, ''),
+            paramId: payload.paramId.replace(/\0/g, ''),
             value: payload.paramValue,
             paramType: payload.paramType,
             paramCount: payload.paramCount,
@@ -226,10 +226,10 @@ export async function requestAllParams(
 
             const pkt = await mav.waitForPacket(22, 500);
             if (pkt) {
-                const payload = pkt.payload as any;
+                const payload = pkt.payload as common.ParamValue;
                 const param: MavParam = {
                     index: payload.paramIndex,
-                    paramId: (payload.paramId as string).replace(/\0/g, ''),
+                    paramId: payload.paramId.replace(/\0/g, ''),
                     value: payload.paramValue,
                     paramType: payload.paramType,
                     paramCount: payload.paramCount,
@@ -268,8 +268,8 @@ export async function setParam(
 
     // wait for PARAM_VALUE confirmation
     const pkt = await mav.waitForPacket(22, 1000, (p) => {
-        const pl = p.payload as any;
-        const id = (pl.paramId as string).replace(/\0/g, '');
+        const pl = p.payload as common.ParamValue;
+        const id = pl.paramId.replace(/\0/g, '');
         return id === paramId;
     });
 
@@ -278,10 +278,10 @@ export async function setParam(
         return null;
     }
 
-    const payload = pkt.payload as any;
+    const payload = pkt.payload as common.ParamValue;
     return {
         index: payload.paramIndex,
-        paramId: (payload.paramId as string).replace(/\0/g, ''),
+        paramId: payload.paramId.replace(/\0/g, ''),
         value: payload.paramValue,
         paramType: payload.paramType,
         paramCount: payload.paramCount,

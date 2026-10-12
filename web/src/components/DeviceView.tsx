@@ -3,13 +3,13 @@
 
 import FirmwareFlasherPanel from './FirmwareFlasherPanel';
 import { DEVICE_CONFIGS, TargetType, BackendTarget } from '../constants';
-import type { Version } from '../types';
+import type { FlashOptions, Version } from '../types';
 
 interface DeviceViewProps {
   targetType: TargetType;
   versions: Version[];
   devices: string[];
-  onFlash: (options: any) => void;
+  onFlash: (options: FlashOptions) => void;
   isFlashing: boolean;
   flashTarget: BackendTarget | null;
   progress: number;

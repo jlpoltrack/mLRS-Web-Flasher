@@ -1,5 +1,15 @@
 import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from 'react';
 
+function readStored<T>(key: string, initialValue: T): T {
+  try {
+    const item = window.localStorage.getItem(key);
+    return item ? JSON.parse(item) : initialValue;
+  } catch (error) {
+    console.warn(`Error reading localStorage key "${key}":`, error);
+    return initialValue;
+  }
+}
+
 // last updated: 2026-01-15
 
 /**
@@ -11,15 +21,14 @@ import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } 
 export function usePersistentState<T>(key: string, initialValue: T): [T, Dispatch<SetStateAction<T>>] {
   // Get from local storage then
   // parse stored json or return initialValue
-  const [state, setState] = useState<T>(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
-    } catch (error) {
-      console.warn(`Error reading localStorage key "${key}":`, error);
-      return initialValue;
-    }
-  });
+  const [state, setState] = useState<T>(() => readStored(key, initialValue));
+
+  // Re-read state if key changes (e.g. navigation between same component types)
+  const [loadedKey, setLoadedKey] = useState(key);
+  if (loadedKey !== key) {
+    setLoadedKey(key);
+    setState(readStored(key, initialValue));
+  }
 
   // Return a wrapped version of useState's setter function that ...
   // ... persists the new value to localStorage.
@@ -50,18 +59,6 @@ export function usePersistentState<T>(key: string, initialValue: T): [T, Dispatc
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [key]);
-
-  // Update state if key changes (e.g. navigation between same component types)
-  useEffect(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      const nextValue = item ? JSON.parse(item) : initialValue;
-      setState(nextValue);
-    } catch (error) {
-      console.warn(`Error reading localStorage key "${key}" on key change:`, error);
-      setState(initialValue);
-    }
-  }, [key, initialValue]);
 
   return [state, setValue];
 }
