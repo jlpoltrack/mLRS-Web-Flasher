@@ -9,7 +9,7 @@ export const PARAM_READ_TIMEOUT_MS = 500;
 export const PARAM_READ_RETRIES = 2;
 
 // registry of all known messages
-export const REGISTRY: any = {
+export const REGISTRY: Record<number, new () => MavLinkData> = {
     ...minimal.REGISTRY,
     ...common.REGISTRY,
 };
@@ -47,9 +47,9 @@ export class MavLinkConnection {
     async connect(baudRate: number) {
         try {
             await this.port.open({ baudRate });
-        } catch (e: any) {
+        } catch (e) {
             // port might already be open - check if it's usable
-            if (!e?.message?.includes('already open')) {
+            if (!(e instanceof Error && e.message.includes('already open'))) {
                 throw e;
             }
         }
@@ -86,7 +86,7 @@ export class MavLinkConnection {
         if (this.reader) {
             try {
                 await this.reader.cancel();
-            } catch { }
+            } catch { /* ignore */ }
         }
 
         // 2. wait for read loop to finish (with timeout)
@@ -96,17 +96,17 @@ export class MavLinkConnection {
                     this.readLoopPromise,
                     new Promise(r => setTimeout(r, 1000))
                 ]);
-            } catch { }
+            } catch { /* ignore */ }
             this.readLoopPromise = null;
         }
 
         // 3. release locks
         if (this.reader) {
-            try { this.reader.releaseLock(); } catch { }
+            try { this.reader.releaseLock(); } catch { /* ignore */ }
             this.reader = null;
         }
         if (this.writer) {
-            try { this.writer.releaseLock(); } catch { }
+            try { this.writer.releaseLock(); } catch { /* ignore */ }
             this.writer = null;
         }
 
@@ -114,7 +114,7 @@ export class MavLinkConnection {
         if (this.port) {
             try {
                 await this.port.close();
-            } catch { }
+            } catch { /* ignore */ }
         }
     }
 
@@ -152,7 +152,7 @@ export class MavLinkConnection {
             // deserialization: convert raw bytes to typed objects
             const clazz = REGISTRY[packet.header.msgid];
             if (clazz && packet.protocol) {
-                (packet as any).payload = packet.protocol.data(packet.payload, clazz);
+                packet.payload = packet.protocol.data(packet.payload, clazz);
             }
 
             // push to queue (cap size to prevent memory leaks from idle connections)
@@ -204,8 +204,8 @@ export class MavLinkConnection {
     async waitForHeartbeat(timeoutMs = 10000): Promise<boolean> {
         this.onLog?.("wait for heartbeat...");
         const packet = await this.waitForPacket(0, timeoutMs); // 0 = HEARTBEAT
-        if (packet) {
-            const hb = packet.payload as any;
+        const hb: unknown = packet?.payload;
+        if (packet && hb instanceof minimal.Heartbeat) {
             this.onLog?.(`HEARTBEAT {type : ${hb.type}, autopilot : ${hb.autopilot}, base_mode : ${hb.baseMode}, custom_mode : ${hb.customMode}, system_status : ${hb.systemStatus}, mavlink_version : ${hb.mavlinkVersion}}`);
 
             if (hb.autopilot === 3) { // MAV_AUTOPILOT_ARDUPILOTMEGA
@@ -215,6 +215,13 @@ export class MavLinkConnection {
             }
         }
         return false;
+    }
+
+    private isParamValueFor(paramId: string) {
+        return (packet: MavLinkPacket) => {
+            const payload: unknown = packet.payload;
+            return payload instanceof common.ParamValue && payload.paramId.replace(/\0/g, '') === paramId;
+        };
     }
 
     async paramRead(paramId: string, timeoutMs: number = PARAM_READ_TIMEOUT_MS, retries: number = PARAM_READ_RETRIES): Promise<number> {
@@ -227,10 +234,10 @@ export class MavLinkConnection {
 
             await this.send(msg);
 
-            // poll queue for PARAM_VALUE
-            const pkt = await this.waitForPacket(22, timeoutMs);
+            // poll queue for matching PARAM_VALUE (ArduPilot also broadcasts unsolicited ones, e.g. STAT_RUNTIME)
+            const pkt = await this.waitForPacket(22, timeoutMs, this.isParamValueFor(paramId));
             if (pkt) {
-                const payload = pkt.payload as any;
+                const payload: common.ParamValue = pkt.payload; // type checked by predicate
                 return payload.paramValue;
             }
 
@@ -249,31 +256,26 @@ export class MavLinkConnection {
         msg.targetSystem = this.targetSysId;
         msg.targetComponent = this.targetCompId;
         msg.paramId = paramId;
-        // paramType is missing in some type definitions but required by ArduPilot
-        (msg as any).paramType = 0;
+        msg.paramType = 0; // required by ArduPilot
 
         await this.send(msg);
         // wait for confirmation (poll queue)
-        await this.waitForPacket(22, 500); // 22 = PARAM_VALUE
+        await this.waitForPacket(22, 500, this.isParamValueFor(paramId)); // 22 = PARAM_VALUE
     }
 
     // poll for COMMAND_ACK with matching command and magic number
     async waitForMwAck(expectedCmd: number, magic: number, timeoutMs = 2000): Promise<boolean> {
         const pkt = await this.waitForPacket(77, timeoutMs, (packet) => {
-            const payload = packet.payload as any;
-            return payload?.command === expectedCmd && payload?.resultParam2 === magic;
+            const payload: unknown = packet.payload;
+            return payload instanceof common.CommandAck && payload.command === expectedCmd && payload.resultParam2 === magic;
         });
         return pkt !== null;
     }
 
     async commandLong(cmd: number, p1=0, p2=0, p3=0, p4=0, p5=0, p6=0, p7=0, targetSys?: number, targetComp?: number, confirmation=0) {
         const msg = new common.CommandLong();
-        // helper to set params to avoid excessive TS ignores
-        const setParams = (m: any) => {
-             m._param1 = p1; m._param2 = p2; m._param3 = p3; m._param4 = p4;
-             m._param5 = p5; m._param6 = p6; m._param7 = p7;
-        };
-        setParams(msg);
+        msg._param1 = p1; msg._param2 = p2; msg._param3 = p3; msg._param4 = p4;
+        msg._param5 = p5; msg._param6 = p6; msg._param7 = p7;
 
         msg.command = cmd;
         msg.targetSystem = targetSys ?? this.targetSysId;
