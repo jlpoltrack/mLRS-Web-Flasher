@@ -171,8 +171,8 @@ export const g_targetDict: Record<string, any> = {
         'wireless' : { 'chipset' : 'esp32c3', 'baud' : 115200, 'erase' : 'full_erase' },
     },
     'rx-matek' : {
-        'flashmethod' : 'dfu,ardupilot_passthrough',
-        'description' : description_stm32_dfu_default + description_passthrough_default,
+        'flashmethod' : 'dfu,stlink,ardupilot_passthrough',
+        'description' : description_stm32_dfu_default + description_stm32_stlink_default + description_passthrough_default,
         'rx-matek-mr900-22' : {
             'flashmethod' : 'stlink,uart,ardupilot_passthrough',
             'description' : description_stm32_stlink_default + description_stm32_uart_default + description_passthrough_default,
