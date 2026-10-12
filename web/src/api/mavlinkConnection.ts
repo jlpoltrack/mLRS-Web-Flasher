@@ -7,6 +7,8 @@ import type { MavLinkPacket } from 'node-mavlink';
 // communication settings
 export const PARAM_READ_TIMEOUT_MS = 500;
 export const PARAM_READ_RETRIES = 2;
+// consecutive serial read errors tolerated before the link is treated as dead
+const MAX_READ_ERRORS = 10;
 
 // registry of all known messages
 export const REGISTRY: Record<number, new () => MavLinkData> = {
@@ -125,20 +127,34 @@ export class MavLinkConnection {
         if (!this.reader) return;
 
         this.readLoopPromise = (async () => {
+            let readErrors = 0;
             try {
                 while (this.readLoopActive && this.reader) {
-                    const { value, done } = await this.reader.read();
-                    if (done) {
-                        if (this.readLoopActive) this.onLog?.("MAVLink link closed by the port.");
-                        break;
-                    }
-                    if (value) {
-                        this.splitter.write(value);
+                    try {
+                        const { value, done } = await this.reader.read();
+                        if (done) {
+                            if (this.readLoopActive) this.onLog?.("MAVLink link closed by the port.");
+                            break;
+                        }
+                        readErrors = 0;
+                        if (value) {
+                            this.splitter.write(value);
+                        }
+                    } catch (e) {
+                        // errors are expected on close/cancel
+                        if (!this.readLoopActive) break;
+                        // break/framing/overrun errors are recoverable: the port hands out a fresh readable
+                        const reason = e instanceof Error ? e.message : e;
+                        try { this.reader.releaseLock(); } catch { /* ignore */ }
+                        this.reader = null;
+                        if (++readErrors > MAX_READ_ERRORS || !this.port.readable || this.port.readable.locked) {
+                            this.onLog?.(`MAVLink read failed: ${reason}`);
+                            break;
+                        }
+                        if (readErrors === 1) this.onLog?.(`MAVLink read error (${reason}), recovering...`);
+                        this.reader = this.port.readable.getReader();
                     }
                 }
-            } catch (e) {
-                // errors are expected on close/cancel; anything else means the link dropped
-                if (this.readLoopActive) this.onLog?.(`MAVLink read failed: ${e instanceof Error ? e.message : e}`);
             } finally {
                 this.readLoopActive = false;
             }
