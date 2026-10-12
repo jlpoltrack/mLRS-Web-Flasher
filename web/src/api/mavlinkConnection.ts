@@ -128,13 +128,17 @@ export class MavLinkConnection {
             try {
                 while (this.readLoopActive && this.reader) {
                     const { value, done } = await this.reader.read();
-                    if (done) break;
+                    if (done) {
+                        if (this.readLoopActive) this.onLog?.("MAVLink link closed by the port.");
+                        break;
+                    }
                     if (value) {
                         this.splitter.write(value);
                     }
                 }
-            } catch {
-                // ignore errors on close/cancel
+            } catch (e) {
+                // errors are expected on close/cancel; anything else means the link dropped
+                if (this.readLoopActive) this.onLog?.(`MAVLink read failed: ${e instanceof Error ? e.message : e}`);
             } finally {
                 this.readLoopActive = false;
             }
@@ -213,6 +217,9 @@ export class MavLinkConnection {
                 this.targetCompId = packet.header.compid;
                 return true;
             }
+            this.onLog?.("Heartbeat is not from ArduPilot.");
+        } else if (!packet) {
+            this.onLog?.(this.readLoopActive ? "No heartbeat received." : "No heartbeat: link is not open.");
         }
         return false;
     }
