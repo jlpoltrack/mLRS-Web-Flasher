@@ -10,6 +10,7 @@ import { getPageSize, isKnownChip, FLASH_BASE, MAX_FLASH_SIZE } from './chipCons
 import { Stm32UartProtocol } from './stm32UartProtocol';
 import { StlinkDevice, FlashOperations } from './stlink';
 import { isEspNativeUsbPort } from './hardwareService';
+import { flashRxOta } from './rxOta';
 
 
 const resolveAssetPath = (path: string) => {
@@ -43,6 +44,11 @@ export async function flash(
   options: FlasherOptions
 ): Promise<void> {
   const { chipset, onLog, flashMethod } = options;
+
+  // ota goes via the Tx module and is independent of the receiver's chipset
+  if (flashMethod === 'rx_ota') {
+    return flashRxOta(port as SerialPort, firmwareData, options);
+  }
 
   onLog?.(`Starting flash process for chipset: ${chipset}...`);
 

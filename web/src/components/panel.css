@@ -407,11 +407,15 @@
   display: none;
 }
 
+/* let the grid cell shrink below the filename width so the button can truncate */
+.form-group:has(> .local-file-input) {
+  min-width: 0;
+}
+
 .local-file-input .file-select-btn {
-  display: inline-flex;
-  align-items: center;
+  display: block;
   cursor: pointer;
-  max-width: 400px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
