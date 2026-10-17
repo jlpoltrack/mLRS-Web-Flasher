@@ -34,9 +34,12 @@ const ETHOS_SCRIPTS = [
   { src: 'Ethos/main.lua', dest: 'scripts/mlrs/main.lua' },
   { src: 'Ethos/mlrs.lua', dest: 'scripts/mlrs/mlrs.lua' },
   { src: 'Ethos/icon.png', dest: 'scripts/mlrs/icon.png' },
-  { src: '32ChannelLuaScripts/Ethos/mLRS32Ch/main.lua', dest: 'scripts/mlrs32/main.lua' },
-  { src: 'StatisticsLuaScripts/Ethos/mLRSStatsW/main.lua', dest: 'scripts/mlrsstats/main.lua' },
+  { src: '32ChannelLuaScripts/Ethos/mLRS32ChW/main.lua', dest: 'scripts/mLRS32ChW/main.lua' },
+  { src: 'StatisticsLuaScripts/Ethos/mLRSStatsW/main.lua', dest: 'scripts/mLRSStatsW/main.lua' },
 ];
+
+// earlier Ethos install folders, the same scripts there would show up twice on the radio
+const ETHOS_STALE_DIRS = ['mLRS32Ch', 'mlrs32', 'mlrsstats'];
 
 // case-insensitive lookup, SD cards are FAT but the picker API is case-sensitive on some hosts
 async function findEntryName(dir: FileSystemDirectoryHandle, name: string): Promise<string | null> {
@@ -69,29 +72,33 @@ async function removeOtherToolVariants(root: FileSystemDirectoryHandle, keep: st
   return names.map(name => `${scriptsName}/${toolsName}/${name}`);
 }
 
-// removes the old 32ch script (and its .luac) if user previously placed it in scripts/mLRS32Ch
+// removes main.lua (and its .luac) from the earlier Ethos install folders
 // returns the removed paths
 async function removeStaleEthosScripts(root: FileSystemDirectoryHandle): Promise<string[]> {
   const scriptsName = await findEntryName(root, 'scripts');
   if (!scriptsName) return [];
   const scripts = await root.getDirectoryHandle(scriptsName);
-  const oldDirName = await findEntryName(scripts, 'mLRS32Ch');
-  if (!oldDirName) return [];
-  const oldDir = await scripts.getDirectoryHandle(oldDirName);
 
   const stale = ['main.lua', 'main.luac'];
-  const names: string[] = [];
-  const others: string[] = [];
-  for await (const entry of oldDir.keys()) {
-    (stale.includes(entry.toLowerCase()) ? names : others).push(entry);
-  }
-  for (const name of names) await oldDir.removeEntry(name);
-  const removed = names.map(name => `${scriptsName}/${oldDirName}/${name}`);
+  const removed: string[] = [];
+  for (const dirName of ETHOS_STALE_DIRS) {
+    const oldDirName = await findEntryName(scripts, dirName);
+    if (!oldDirName) continue;
+    const oldDir = await scripts.getDirectoryHandle(oldDirName);
 
-  // drop the folder only if nothing else is left in it
-  if (others.length === 0) {
-    await scripts.removeEntry(oldDirName);
-    removed.push(`${scriptsName}/${oldDirName}`);
+    const names: string[] = [];
+    const others: string[] = [];
+    for await (const entry of oldDir.keys()) {
+      (stale.includes(entry.toLowerCase()) ? names : others).push(entry);
+    }
+    for (const name of names) await oldDir.removeEntry(name);
+    removed.push(...names.map(name => `${scriptsName}/${oldDirName}/${name}`));
+
+    // drop the folder only if nothing else is left in it
+    if (others.length === 0) {
+      await scripts.removeEntry(oldDirName);
+      removed.push(`${scriptsName}/${oldDirName}`);
+    }
   }
   return removed;
 }
@@ -270,9 +277,9 @@ function LuaScript({ addLog }: LuaScriptProps) {
                 <strong>Ethos:</strong> Click <strong>Select SD Card</strong> and pick the root folder of the radio's SD card.
                 <br />
                 <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                  The configuration tool is written to <code>/scripts/mlrs/</code>, the 32 channel task script to <code>/scripts/mlrs32/</code>, and the statistics widget to <code>/scripts/mlrsstats/</code>.
+                  The configuration tool is written to <code>/scripts/mlrs/</code>, the 32 channel task script to <code>/scripts/mLRS32ChW/</code>, and the statistics widget to <code>/scripts/mLRSStatsW/</code>.
                   Restart the radio, then add the "mLRS Statistics" widget to a screen (requires Tx firmware v1.4.04 or later).
-                  Existing copies are overwritten and stale compiled bytecode is removed.
+                  Existing copies are overwritten, and copies in older install folders and stale compiled bytecode are removed.
                   Eject / safely remove the SD card before unplugging, otherwise the files may not be fully written.
                 </span>
               </li>
