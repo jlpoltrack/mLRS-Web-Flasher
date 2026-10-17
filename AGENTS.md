@@ -76,4 +76,4 @@ Firmware versions and files come at runtime from the upstream `olliw42/mLRS` Git
 
 ## Docs
 
-`docs/` has design notes: `adding_devices.md`, `style_guide.md`, `web_stlink.md` (ST-Link/SWD implementation), `msp_bootloader_guide.md`, `ardupilot_passthrough_review.md`, `superpowers/specs/` (feature designs). `docs/web_architecture.md` is the original porting plan and is **outdated**: SWD/ST-Link is implemented and Tailwind is not used.
+`docs/` has design notes: `adding_devices.md`, `style_guide.md`, `web_stlink.md` (ST-Link/SWD implementation), `msp_bootloader_guide.md`, `ardupilot_passthrough_review.md`, `flashing_optimizations.md`, `superpowers/specs/` (feature designs). `web_architecture.md` and `ardupilot_passthrough_review.md` are historical: prefer the code and this file where they disagree.
