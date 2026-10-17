@@ -1,4 +1,4 @@
-// last updated: 2026-10-15
+// last updated: 2026-10-17
 import { useState } from 'react';
 import { LogType } from '../constants';
 import type { LogEntry } from '../types';
@@ -24,7 +24,7 @@ const EDGETX_TOOL_VARIANTS = [
 
 // scripts installed regardless of screen type, dest is relative to the SD card root
 const EDGETX_COMMON_SCRIPTS = [
-  { src: 'mLRSStatsW/main.lua', dest: 'WIDGETS/mLRSStatsW/main.lua' },
+  { src: 'StatisticsLuaScripts/EdgeTx/mLRSStatsW/main.lua', dest: 'WIDGETS/mLRSStatsW/main.lua' },
   { src: '32ChannelLuaScripts/EdgeTx/mLRS32ChM/mlrs32.lua', dest: 'SCRIPTS/MIXES/mlrs32.lua' },
   { src: '32ChannelLuaScripts/EdgeTx/mLRS32ChW/main.lua', dest: 'WIDGETS/mLRS32ChW/main.lua' },
 ];
@@ -35,7 +35,7 @@ const ETHOS_SCRIPTS = [
   { src: 'Ethos/mlrs.lua', dest: 'scripts/mlrs/mlrs.lua' },
   { src: 'Ethos/icon.png', dest: 'scripts/mlrs/icon.png' },
   { src: '32ChannelLuaScripts/Ethos/mLRS32Ch/main.lua', dest: 'scripts/mlrs32/main.lua' },
-  { src: 'mLRSStatsEthos/main.lua', dest: 'scripts/mlrsstats/main.lua' },
+  { src: 'StatisticsLuaScripts/Ethos/mLRSStatsW/main.lua', dest: 'scripts/mlrsstats/main.lua' },
 ];
 
 // case-insensitive lookup, SD cards are FAT but the picker API is case-sensitive on some hosts
