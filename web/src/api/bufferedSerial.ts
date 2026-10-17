@@ -35,21 +35,21 @@ export class BufferedSerial {
         this.reading = false;
         
         if (this.reader) {
-            try { await this.reader.cancel(); } catch {}
+            try { await this.reader.cancel(); } catch { /* ignore */ }
         }
         
         if (this.readingPromise) {
-            try { await this.readingPromise; } catch {}
+            try { await this.readingPromise; } catch { /* ignore */ }
             this.readingPromise = null;
         }
 
         if (this.reader) {
-            try { this.reader.releaseLock(); } catch {}
+            try { this.reader.releaseLock(); } catch { /* ignore */ }
             this.reader = null;
         }
 
         if (this.writer) {
-            try { this.writer.releaseLock(); } catch {}
+            try { this.writer.releaseLock(); } catch { /* ignore */ }
             this.writer = null;
         }
     }
@@ -60,8 +60,8 @@ export class BufferedSerial {
             await this.port.close();
             // allow OS time to release resource
             await new Promise(r => setTimeout(r, 100));
-        } catch (e: any) {
-            this.log(`Port close error: ${e?.message || e}`);
+        } catch (e) {
+            this.log(`Port close error: ${e instanceof Error ? e.message : e}`);
         }
     }
 
@@ -84,11 +84,11 @@ export class BufferedSerial {
                     }
                 }
             }
-        } catch (e: any) {
+        } catch {
              // Ignore errors on close/cancel
         } finally {
             this.reading = false;
-            try { this.reader?.releaseLock(); } catch {}
+            try { this.reader?.releaseLock(); } catch { /* ignore */ }
             this.reader = null;
         }
     }

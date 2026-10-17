@@ -1,4 +1,7 @@
 # Code Review: ArduPilot Passthrough Refactor
+
+> **Historical:** point-in-time review of commit `4349abb`; line numbers and findings may no longer match the code.
+
 **Commit:** `4349abb` ("better ap passthru")  
 **Date:** January 19, 2026
 

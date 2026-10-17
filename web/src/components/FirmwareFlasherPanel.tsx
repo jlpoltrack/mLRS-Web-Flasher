@@ -7,7 +7,7 @@ import { findPortByName } from '../api/hardwareService';
 import { InavPassthroughService, type MspPort } from '../api/inavPassthrough';
 import { ArduPilotPassthroughService, type ArduPilotSerialPort } from '../api/ardupilotPassthrough';
 import { buildOtaFile } from '../api/rxOta';
-import type { Version } from '../types';
+import type { FlashOptions, Version } from '../types';
 import { FlashMethod, TargetType, BackendTarget, DEFAULT_FLASH_METHOD } from '../constants';
 import './panel.css';
 
@@ -44,7 +44,7 @@ interface FirmwareFlasherPanelProps {
   targetType: TargetType;
   versions: Version[];
   devices: string[];
-  onFlash: (options: any) => void;
+  onFlash: (options: FlashOptions) => void;
   isFlashing: boolean;
   flashTarget: BackendTarget | null;
   progress: number;
@@ -164,7 +164,7 @@ function FirmwareFlasherPanel({
     } else if (!flashMethod) {
       setFlashMethod(DEFAULT_FLASH_METHOD);
     }
-  }, [metadata, flashMethod, setFlashMethod, useLocalFile]);
+  }, [metadata, flashMethod, setFlashMethod, useLocalFile, targetType]);
 
   // select default ELRS file for R9 Tx
   useEffect(() => {
@@ -178,18 +178,7 @@ function FirmwareFlasherPanel({
         setSelectedElrsFile('');
       }
     }
-  }, [selectedDevice, targetType, firmwareFiles, selectedElrsFile]);
-
-  // auto-scan MSP ports when method or port changes
-  useEffect(() => {
-    if (flashMethod === FlashMethod.InavPassthrough && selectedPort) {
-        // debounce to avoid duplicate scans from react strict mode
-        const timer = setTimeout(() => scanMspPorts(), 100);
-        return () => clearTimeout(timer);
-    } else if (flashMethod !== FlashMethod.InavPassthrough) {
-        setMspPorts([]);
-    }
-  }, [flashMethod, selectedPort]);
+  }, [selectedDevice, targetType, firmwareFiles, selectedElrsFile, setSelectedElrsFile]);
 
   // auto-scan AP ports when method or port changes
   useEffect(() => {
@@ -207,6 +196,8 @@ function FirmwareFlasherPanel({
     } else if (flashMethod !== FlashMethod.ArduPilotPassthrough) {
         setApPorts([]);
     }
+    // scanApPorts changes with isScanningAp; depending on it would abort and restart each scan
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flashMethod, selectedPort]);
 
   const mspScanActiveRef = useRef(false);
@@ -235,21 +226,32 @@ function FirmwareFlasherPanel({
             await service.connect();
             const ports = await service.getMspPorts();
             setMspPorts(ports);
-        } catch (e: any) {
+        } catch (e) {
              console.error("MSP Scan failed:", e);
         } finally {
             try {
                 await service.disconnect();
                 await service.close();
-            } catch (e) { /* ignore close errors */ }
+            } catch { /* ignore close errors */ }
         }
-    } catch (e: any) {
+    } catch (e) {
         console.error("Port lookup failed:", e);
     } finally {
         mspScanActiveRef.current = false;
         setIsScanningMsp(false);
     }
-  }, [selectedPort]);
+  }, [selectedPort, setError]);
+
+  // auto-scan MSP ports when method or port changes
+  useEffect(() => {
+    if (flashMethod === FlashMethod.InavPassthrough && selectedPort) {
+        // debounce to avoid duplicate scans from react strict mode
+        const timer = setTimeout(() => scanMspPorts(), 100);
+        return () => clearTimeout(timer);
+    } else if (flashMethod !== FlashMethod.InavPassthrough) {
+        setMspPorts([]);
+    }
+  }, [flashMethod, selectedPort, scanMspPorts]);
 
   // auto-select MSP port when list updates
   useEffect(() => {
@@ -297,7 +299,7 @@ function FirmwareFlasherPanel({
             } else {
                 setError(`No ArduPilot heartbeat on ${selectedPort}. Ensure FC is connected and not in use.`);
             }
-        } catch (e: any) {
+        } catch (e) {
             if (!apScanAbortRef.current) console.error("AP Scan failed:", e);
         } finally {
             apServiceRef.current = null;
@@ -306,7 +308,7 @@ function FirmwareFlasherPanel({
                 await new Promise(r => setTimeout(r, 200)); // let port fully release
             } catch { /* ignore close errors */ }
         }
-    } catch (e: any) {
+    } catch (e) {
         console.error("Port lookup failed:", e);
     } finally {
         if (!apScanAbortRef.current) {
@@ -314,7 +316,7 @@ function FirmwareFlasherPanel({
             setScanProgressLabel('Scanning FC ports...');
         }
     }
-  }, [selectedPort, isScanningAp]);
+  }, [selectedPort, isScanningAp, setError]);
 
   // auto-select AP port when list updates
   useEffect(() => {
@@ -400,7 +402,7 @@ function FirmwareFlasherPanel({
       // send explicit chipset when local file mode has an mcu selector (tx internal, or receiver + esptool/passthrough)
       chipset: (useLocalFile && (targetType === TargetType.TxInternal || (targetType === TargetType.Receiver && (flashMethod === FlashMethod.ESPTool || flashMethod === FlashMethod.ArduPilotPassthrough || flashMethod === FlashMethod.InavPassthrough)))) ? localChipset : undefined,
     });
-  }, [firmwareFiles, selectedFile, flashMethod, selectedDevice, selectedVersion, selectedPort, selectedUSBDevice, selectedStlink, serialX, targetUartIndex, mspPorts, setError, onFlash, targetType, metadata, useLocalFile, localFile, localFileData, localChipset, setFlashMethod]);
+  }, [firmwareFiles, selectedFile, flashMethod, selectedDevice, selectedVersion, selectedPort, selectedUSBDevice, selectedStlink, serialX, targetUartIndex, mspPorts, setError, onFlash, targetType, metadata, useLocalFile, localFile, localFileData, localChipset]);
 
   // makes the receiver image file for the radio's SD card and hands it to the browser as download
   const handleDownloadOta = useCallback(async () => {
@@ -556,7 +558,7 @@ function FirmwareFlasherPanel({
             setFlashMethod(FlashMethod.STLink);
         }
     }
-  }, [isR9Rx, isR9Tx, flashMethod, firmwareFiles, selectedFile, setSelectedFile]);
+  }, [isR9Rx, isR9Tx, flashMethod, setFlashMethod, firmwareFiles, selectedFile, setSelectedFile]);
 
   // available flash methods for local file mode (target-specific)
   const localFlashMethods = useMemo(() => {

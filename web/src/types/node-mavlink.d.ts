@@ -26,9 +26,10 @@ declare module 'node-mavlink' {
 
     export interface MavLinkPacket {
         header: MavLinkPacketHeader;
-        payload: any;
+        // raw bytes from the parser; replaced with the decoded message for known msgids
+        payload: Uint8Array | MavLinkData;
         protocol: {
-            data(payload: Uint8Array, clazz: any): any;
+            data(payload: Uint8Array, clazz: new () => MavLinkData): MavLinkData;
         };
     }
 
@@ -44,7 +45,7 @@ declare module 'node-mavlink' {
     }
 
     export namespace minimal {
-        export const REGISTRY: Record<number, any>;
+        export const REGISTRY: Record<number, new () => MavLinkData>;
         
         export class Heartbeat extends MavLinkData {
             type: number;
@@ -57,7 +58,7 @@ declare module 'node-mavlink' {
     }
 
     export namespace common {
-        export const REGISTRY: Record<number, any>;
+        export const REGISTRY: Record<number, new () => MavLinkData>;
         
         export class ParamRequestRead extends MavLinkData {
             targetSystem: number;

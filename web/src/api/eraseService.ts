@@ -25,13 +25,12 @@ export async function eraseESP(
 
   // ensure port is closed so esptool can open it
   if (port.readable || port.writable) {
-    try { await port.close(); } catch (_) { /* ignore */ }
+    try { await port.close(); } catch { /* ignore */ }
     await new Promise(r => setTimeout(r, 500));
   }
   await new Promise(r => setTimeout(r, 500));
 
-  // @ts-ignore: ESPLoader types are not perfect
-  const transport = new Transport(port as any);
+  const transport = new Transport(port);
 
   // native USB (esp32-c3/s3/c6 USB Serial/JTAG): stay at the ROM baud, a baud
   // change is meaningless there and forces a reopen of a re-enumerating port
@@ -75,8 +74,8 @@ export async function eraseESP(
     sm.transition('DONE', 'ESP chip erase complete!');
   } catch (err) {
     sm.transition('ERROR', `ESP erase failed: ${err instanceof Error ? err.message : String(err)}`);
-    try { await transport.disconnect(); } catch (_) { /* ignore */ }
-    try { if (port.readable || port.writable) await port.close(); } catch (_) { /* ignore */ }
+    try { await transport.disconnect(); } catch { /* ignore */ }
+    try { if (port.readable || port.writable) await port.close(); } catch { /* ignore */ }
     throw err;
   }
 }
@@ -93,7 +92,7 @@ export async function eraseSTM32UART(
 
   // ensure port is closed so protocol can open with correct parity
   if (port.readable || port.writable) {
-    try { await port.close(); } catch (_) { /* ignore */ }
+    try { await port.close(); } catch { /* ignore */ }
     await new Promise(r => setTimeout(r, 1000));
   }
 
@@ -143,7 +142,7 @@ export async function eraseSTM32DFU(
     }
 
     // fix interface names if needed
-    if (interfaces.some((intf: any) => intf.name === null)) {
+    if (interfaces.some(intf => intf.name === null)) {
       const tempDevice = new DFU.Device(device, interfaces[0]);
       await tempDevice.device_.open();
       await tempDevice.device_.selectConfiguration(1);
@@ -165,7 +164,7 @@ export async function eraseSTM32DFU(
     // select flash interface
     let settings = interfaces[0];
     if (interfaces.length > 1) {
-      const flashInterface = interfaces.find((a: any) => a.name?.indexOf('Flash') !== -1);
+      const flashInterface = interfaces.find(a => a.name?.indexOf('Flash') !== -1);
       if (flashInterface) settings = flashInterface;
     }
     sm.log(`DFU interface: ${settings.name || 'Unnamed'} (Alt ${settings.alternate.alternateSetting})`);
@@ -173,7 +172,7 @@ export async function eraseSTM32DFU(
     // create DFU device and read descriptors
     let dfu: InstanceType<typeof DFU.Device> | InstanceType<typeof DFUse.Device> = new DFU.Device(device, settings);
 
-    const setupLogging = (dev: any) => {
+    const setupLogging = (dev: InstanceType<typeof DFU.Device>) => {
       dev.logDebug = (msg: string) => console.debug(msg);
       dev.logInfo = (msg: string) => sm.log(msg);
       dev.logWarning = (msg: string) => sm.log(`Warning: ${msg}`);
@@ -192,13 +191,13 @@ export async function eraseSTM32DFU(
       const configValue = dfu.settings.configuration.configurationValue;
       if (configDesc.bConfigurationValue === configValue) {
         for (const desc of configDesc.descriptors) {
-          if (desc.bDescriptorType === 0x21 && desc.hasOwnProperty('bcdDFUVersion')) {
+          if (desc.bDescriptorType === 0x21 && Object.hasOwn(desc, 'bcdDFUVersion')) {
             dfuVersion = desc.bcdDFUVersion ?? 0;
             break;
           }
         }
       }
-    } catch (_) {
+    } catch {
       sm.log('Warning: Could not read DFU descriptor.');
     }
 
@@ -237,7 +236,7 @@ export async function eraseSTM32DFU(
 
     sm.transition('DONE', 'STM32 DFU chip erase complete!');
 
-    try { await dfu.close(); } catch (_) { /* ignore */ }
+    try { await dfu.close(); } catch { /* ignore */ }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     sm.transition('ERROR', `STM32 DFU erase failed: ${errMsg}`);
@@ -290,6 +289,6 @@ export async function eraseSTM32SWD(
     sm.logLinuxUsbHint(errMsg);
     throw err;
   } finally {
-    try { await stlink.disconnect(); } catch (_) { /* ignore */ }
+    try { await stlink.disconnect(); } catch { /* ignore */ }
   }
 }

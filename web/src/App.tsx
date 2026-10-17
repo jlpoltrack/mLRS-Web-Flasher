@@ -6,7 +6,7 @@ import BrowserWarning from './components/BrowserWarning';
 import { TargetType, LogType, BackendTarget } from './constants';
 import './styles/app.css';
 import { api } from './api/webSerialApi';
-import type { LogEntry, Version } from './types';
+import type { FlashOptions, LogEntry, OutputEvent, Version } from './types';
 
 const DeviceView = lazy(() => import('./components/DeviceView'));
 const LuaScript = lazy(() => import('./components/LuaScript'));
@@ -15,9 +15,7 @@ const ParameterEditor = lazy(() => import('./components/ParameterEditor'));
 const MavLinkParameterEditor = lazy(() => import('./components/MavLinkParameterEditor'));
 const CliCommands = lazy(() => import('./components/CliCommands'));
 // payloads delivered by the api output and completion callbacks
-type OutputEvent = { type: 'progress'; progress: number } | LogEntry;
 type CompleteEvent = { code?: number | string | null } | null;
-type FlashOptions = Parameters<typeof api.flash>[0];
 
 // SwdTest is hidden from navigation but kept for development use
 // const SwdTest = lazy(() => import('./components/SwdTest'));
@@ -95,7 +93,6 @@ function App() {
   // listen for python output
   useEffect(() => {
     const cleanup = api.onOutput((data: OutputEvent) => {
-      // callback is untyped in webSerialApi, structure is { type: 'progress'|'log'|LogType, ... }
       if ('progress' in data) {
         setProgress(data.progress);
       } else {

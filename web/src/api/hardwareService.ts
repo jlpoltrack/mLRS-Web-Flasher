@@ -78,7 +78,7 @@ export async function requestPort(): Promise<string | null> {
     const match = uniquePorts.find((p) => p.port === selectedPort);
     
     return match ? match.name : formatPortName(selectedPort);
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -119,7 +119,7 @@ export async function requestUSBDevice(): Promise<string | null> {
     // use dfu-specific filter so browser picker only shows dfu bootloaders
     selectedUSBDevice = await navigator.usb.requestDevice({ filters: [...DFU_USB_FILTERS] });
     return formatUSBName(selectedUSBDevice);
-  } catch (err) {
+  } catch {
     return null;
   }
 }
@@ -181,7 +181,7 @@ export function formatPortName(port: SerialPort): string {
   let display = `${label} (VID:${vid} PID:${pid})`;
   
   if (extraKeys.length > 0) {
-    display += ` [${extraKeys.map(k => `${k}: ${(info as any)[k]}`).join(' ')}]`;
+    display += ` [${extraKeys.map(k => `${k}: ${(info as Record<string, unknown>)[k]}`).join(' ')}]`;
   }
 
   return display;

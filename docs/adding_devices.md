@@ -1,6 +1,6 @@
 # Adding New Devices to mLRS Flasher
 
-This guide explains how to add support for new hardware (Transmitters or Receivers) to the mLRS Flasher desktop application.
+This guide explains how to add support for new hardware (Transmitters or Receivers) to the mLRS Web Flasher.
 
 Device definitions are located in: `web/src/api/metadata.ts`.
 

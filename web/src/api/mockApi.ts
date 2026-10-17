@@ -1,51 +1,51 @@
+import type { OutputEvent } from '../types';
+
 export const api = {
-  listVersions: async (): Promise<any> => ({ 
+  listVersions: async () => ({ 
     versions: [
       { version: 'v1.0.0', versionStr: 'v1.0.0 (Stable)' },
       { version: 'v0.9.0', versionStr: 'v0.9.0' }
     ] 
   }),
-  listDevices: async (_type: string): Promise<any> => ({ 
+  listDevices: async (_type: string) => ({ 
     devices: ['DIY_2400_TX_ESP32', 'DIY_900_RX_ESP32', 'R9M_TX'] 
   }),
-  listFirmware: async (_options: any): Promise<any> => ({ 
+  listFirmware: async (_options: unknown) => ({ 
     files: [
       { filename: 'firmware-v1.0.0.bin', url: 'mock://firmware.bin', size: 1024 }
     ] 
   }),
-  listPorts: async (): Promise<any> => ({ ports: [] }),
-  getMetadata: async (_options: any): Promise<any> => ({
+  listPorts: async () => ({ ports: [] as string[] }),
+  getMetadata: async (_options: unknown) => ({
     raw_flashmethod: 'uart,dfu,stlink',
     description: 'Mock metadata to enable UI elements for testing.',
     needsPort: true 
   }),
   pickDirectory: async (): Promise<string | null> => null,
 
-  flash: async (options: any): Promise<void> => { console.log('Mock flash', options); },
-  downloadLua: async (options: any): Promise<void> => { console.log('Mock downloadLua', options); },
+  flash: async (options: unknown): Promise<void> => { console.log('Mock flash', options); },
+  downloadLua: async (options: unknown): Promise<void> => { console.log('Mock downloadLua', options); },
   cancelPython: async (): Promise<void> => { console.log('Mock cancel'); },
   
-  onOutput: (callback: (data: any) => void) => {
+  onOutput: (callback: (data: OutputEvent) => void) => {
     // mock some logs
     setTimeout(() => callback({ type: 'info', message: 'Mock init...' }), 500);
     return () => {};
   },
-  onComplete: (_callback: (data: any) => void) => {
+  onComplete: (_callback: (data: unknown) => void) => {
     return () => {};
   },
   
   // Real Web Serial Implementation (kept from previous step)
   requestPort: async (): Promise<string | null> => {
-    // @ts-ignore
     if (!navigator.serial) {
       alert('Web Serial API not supported in this browser.');
       return null;
     }
     try {
-      // @ts-ignore
       const port = await navigator.serial.requestPort();
       return formatPortName(port);
-    } catch (err) {
+    } catch {
       // User cancelled
       return null;
     }
@@ -53,7 +53,7 @@ export const api = {
 };
 
 // Helper for formatting port name
-function formatPortName(port: any): string {
+function formatPortName(port: SerialPort): string {
   const info = port.getInfo();
   const vid = info.usbVendorId ? info.usbVendorId.toString(16).padStart(4, '0') : '????';
   const pid = info.usbProductId ? info.usbProductId.toString(16).padStart(4, '0') : '????';

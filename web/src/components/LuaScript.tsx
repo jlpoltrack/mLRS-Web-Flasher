@@ -1,4 +1,4 @@
-// last updated: 2026-10-09
+// last updated: 2026-10-17
 import { useState } from 'react';
 import { LogType } from '../constants';
 import type { LogEntry } from '../types';
@@ -24,7 +24,7 @@ const EDGETX_TOOL_VARIANTS = [
 
 // scripts installed regardless of screen type, dest is relative to the SD card root
 const EDGETX_COMMON_SCRIPTS = [
-  { src: 'mLRSStatsW/main.lua', dest: 'WIDGETS/mLRSStatsW/main.lua' },
+  { src: 'StatisticsLuaScripts/EdgeTx/mLRSStatsW/main.lua', dest: 'WIDGETS/mLRSStatsW/main.lua' },
   { src: '32ChannelLuaScripts/EdgeTx/mLRS32ChM/mlrs32.lua', dest: 'SCRIPTS/MIXES/mlrs32.lua' },
   { src: '32ChannelLuaScripts/EdgeTx/mLRS32ChW/main.lua', dest: 'WIDGETS/mLRS32ChW/main.lua' },
 ];
@@ -35,6 +35,7 @@ const ETHOS_SCRIPTS = [
   { src: 'Ethos/mlrs.lua', dest: 'scripts/mlrs/mlrs.lua' },
   { src: 'Ethos/icon.png', dest: 'scripts/mlrs/icon.png' },
   { src: '32ChannelLuaScripts/Ethos/mLRS32Ch/main.lua', dest: 'scripts/mlrs32/main.lua' },
+  { src: 'StatisticsLuaScripts/Ethos/mLRSStatsW/main.lua', dest: 'scripts/mlrsstats/main.lua' },
 ];
 
 // case-insensitive lookup, SD cards are FAT but the picker API is case-sensitive on some hosts
@@ -228,7 +229,7 @@ function LuaScript({ addLog }: LuaScriptProps) {
           <label>Ethos</label>
           <div className="port-row">
             <div className="static-display">
-              All Radios (mLRS &amp; 32Ch)
+              All Radios (mLRS, 32Ch &amp; Stats)
             </div>
             
             <div title={installingTarget ? 'Install in progress' : undefined}>
@@ -269,7 +270,8 @@ function LuaScript({ addLog }: LuaScriptProps) {
                 <strong>Ethos:</strong> Click <strong>Select SD Card</strong> and pick the root folder of the radio's SD card.
                 <br />
                 <span style={{ fontSize: '0.9em', color: 'var(--text-secondary)' }}>
-                  The configuration tool is written to <code>/scripts/mlrs/</code> and the 32 channel task script to <code>/scripts/mlrs32/</code>.
+                  The configuration tool is written to <code>/scripts/mlrs/</code>, the 32 channel task script to <code>/scripts/mlrs32/</code>, and the statistics widget to <code>/scripts/mlrsstats/</code>.
+                  Restart the radio, then add the "mLRS Statistics" widget to a screen (requires Tx firmware v1.4.04 or later).
                   Existing copies are overwritten and stale compiled bytecode is removed.
                   Eject / safely remove the SD card before unplugging, otherwise the files may not be fully written.
                 </span>

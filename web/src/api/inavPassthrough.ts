@@ -90,8 +90,8 @@ export class InavPassthroughService {
                 }
             }
             return ports;
-        } catch (e: any) {
-            this.log(`MSP V2 Scan failed: ${e.message}`);
+        } catch (e) {
+            this.log(`MSP V2 Scan failed: ${e instanceof Error ? e.message : e}`);
             // Fallback: Return standard UARTs so user isn't blocked
             return Array.from({length: 8}, (_, i) => ({ index: i, name: `UART ${i + 1}`, functions: [] }));
         }

@@ -1,5 +1,7 @@
 # mLRS Web Flasher Architecture
 
+> **Historical:** the original plan for porting from Electron/Python to the web. Parts are outdated (ST-Link/SWD is implemented; Tailwind is not used). See `AGENTS.md` for the current architecture.
+
 ## 1. Executive Summary
 This document outlines the architecture for porting the mLRS Flasher from a hybrid Electron/Python desktop application to a **pure client-side Progressive Web App (PWA)**. 
 
