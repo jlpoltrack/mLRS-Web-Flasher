@@ -7,6 +7,8 @@ import type { MavLinkPacket } from 'node-mavlink';
 // communication settings
 export const PARAM_READ_TIMEOUT_MS = 500;
 export const PARAM_READ_RETRIES = 2;
+// consecutive serial read errors tolerated before the link is treated as dead
+const MAX_READ_ERRORS = 10;
 
 // registry of all known messages
 export const REGISTRY: Record<number, new () => MavLinkData> = {
@@ -125,16 +127,34 @@ export class MavLinkConnection {
         if (!this.reader) return;
 
         this.readLoopPromise = (async () => {
+            let readErrors = 0;
             try {
                 while (this.readLoopActive && this.reader) {
-                    const { value, done } = await this.reader.read();
-                    if (done) break;
-                    if (value) {
-                        this.splitter.write(value);
+                    try {
+                        const { value, done } = await this.reader.read();
+                        if (done) {
+                            if (this.readLoopActive) this.onLog?.("MAVLink link closed by the port.");
+                            break;
+                        }
+                        readErrors = 0;
+                        if (value) {
+                            this.splitter.write(value);
+                        }
+                    } catch (e) {
+                        // errors are expected on close/cancel
+                        if (!this.readLoopActive) break;
+                        // break/framing/overrun errors are recoverable: the port hands out a fresh readable
+                        const reason = e instanceof Error ? e.message : e;
+                        try { this.reader.releaseLock(); } catch { /* ignore */ }
+                        this.reader = null;
+                        if (++readErrors > MAX_READ_ERRORS || !this.port.readable || this.port.readable.locked) {
+                            this.onLog?.(`MAVLink read failed: ${reason}`);
+                            break;
+                        }
+                        if (readErrors === 1) this.onLog?.(`MAVLink read error (${reason}), recovering...`);
+                        this.reader = this.port.readable.getReader();
                     }
                 }
-            } catch {
-                // ignore errors on close/cancel
             } finally {
                 this.readLoopActive = false;
             }
@@ -152,7 +172,7 @@ export class MavLinkConnection {
             // deserialization: convert raw bytes to typed objects
             const clazz = REGISTRY[packet.header.msgid];
             if (clazz && packet.protocol) {
-                packet.payload = packet.protocol.data(packet.payload, clazz);
+                packet.payload = packet.protocol.data(packet.payload as Uint8Array, clazz);
             }
 
             // push to queue (cap size to prevent memory leaks from idle connections)
@@ -213,6 +233,9 @@ export class MavLinkConnection {
                 this.targetCompId = packet.header.compid;
                 return true;
             }
+            this.onLog?.("Heartbeat is not from ArduPilot.");
+        } else if (!packet) {
+            this.onLog?.(this.readLoopActive ? "No heartbeat received." : "No heartbeat: link is not open.");
         }
         return false;
     }
@@ -237,7 +260,7 @@ export class MavLinkConnection {
             // poll queue for matching PARAM_VALUE (ArduPilot also broadcasts unsolicited ones, e.g. STAT_RUNTIME)
             const pkt = await this.waitForPacket(22, timeoutMs, this.isParamValueFor(paramId));
             if (pkt) {
-                const payload: common.ParamValue = pkt.payload; // type checked by predicate
+                const payload = pkt.payload as common.ParamValue; // type checked by predicate
                 return payload.paramValue;
             }
 

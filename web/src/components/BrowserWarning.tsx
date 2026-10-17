@@ -1,16 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { isSerialSupported, isUSBSupported } from '../api/hardwareService';
 import './browserWarning.css';
 
 const BrowserWarning: React.FC = () => {
-  const [hasSerial, setHasSerial] = useState(true);
-  const [hasUSB, setHasUSB] = useState(true);
+  const [hasSerial] = useState(isSerialSupported);
+  const [hasUSB] = useState(isUSBSupported);
   const [isVisible, setIsVisible] = useState(true);
-
-  useEffect(() => {
-    setHasSerial(isSerialSupported());
-    setHasUSB(isUSBSupported());
-  }, []);
 
   if ((hasSerial && hasUSB) || !isVisible) {
     return null;

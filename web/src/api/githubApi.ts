@@ -106,7 +106,7 @@ export const githubApi = {
                 versions.push({ version: 'main', versionStr: 'main (dev)', commit: 'main', gitUrl: '...' });
             }
         }
-      } catch (e) {
+      } catch {
         versions.push({ version: 'main', versionStr: 'main (dev)', commit: 'main', gitUrl: '...' });
       }
 

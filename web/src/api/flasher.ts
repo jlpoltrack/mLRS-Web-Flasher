@@ -209,7 +209,7 @@ export async function initEdgeTXPassthrough(
                     response += decoder.decode(value);
                     if (response.endsWith('\r\n> ')) break;
                 }
-            } catch (e) {
+            } catch {
                  // Timeout or read error
             }
         }
@@ -374,8 +374,7 @@ async function flashESP(
       await new Promise(r => setTimeout(r, 500));
   }
 
-  // @ts-ignore: ESPLoader types are not perfect
-  const transport = new Transport(port as any);
+  const transport = new Transport(port);
 
   // disable DTR/RTS for manual bootloader and passthrough modes
   const signalsDisabled = !!((reset && (reset.includes('no dtr') || reset.includes('no_reset'))) ||
@@ -425,7 +424,6 @@ async function flashESP(
   });
 
   try {
-    let chipName: string;
     
     // map metadata reset values to esptool-js Before types
     // 'dtr' means use default DTR/RTS reset; 'no dtr' and 'no_reset' are handled at line 282
@@ -443,7 +441,7 @@ async function flashESP(
         sm.log("Wireless bridge bootloader detected.");
     }
 
-    chipName = await esploader.main(resetMode);
+    const chipName = await esploader.main(resetMode);
     
     sm.log(`Detected chip: ${chipName}`);
 
@@ -462,8 +460,8 @@ async function flashESP(
         { data: firmwareStr, address: 0x0 }
     ];
     let flashSize = '4MB';
-    let flashMode = 'dio';
-    let flashFreq = '40m';
+    const flashMode = 'dio';
+    const flashFreq = '40m';
 
     const cleanChip = chipName.replace(/-/g, '').toLowerCase(); // e.g. esp32s3, esp32c3, esp32
 
@@ -556,12 +554,12 @@ async function flashESP(
 
     await esploader.writeFlash({
         ...flashOptions,
-        calculateMD5Hash: (_data: any) => "",
+        calculateMD5Hash: () => "",
         reportProgress: (_fileIndex: number, written: number, total: number) => {
             const progress = Math.round((written / total) * 100);
             sm.updateProgress(progress);
         }
-    } as any);
+    });
 
     sm.transition('RESETTING', "Flash complete! Resetting device...");
     
@@ -609,8 +607,8 @@ async function flashESP(
   } catch (err) {
     sm.transition('ERROR', `Error during ESP flash: ${err instanceof Error ? err.message : String(err)}`);
     // close transport and port so the user can retry
-    try { await transport.disconnect(); } catch (_) { /* ignore */ }
-    try { if (port.readable || port.writable) await port.close(); } catch (_) { /* ignore */ }
+    try { await transport.disconnect(); } catch { /* ignore */ }
+    try { if (port.readable || port.writable) await port.close(); } catch { /* ignore */ }
     throw err;
   }
 }
@@ -715,7 +713,7 @@ async function flashSTM32SWD(
   } finally {
       try {
           await stlink.disconnect();
-      } catch (e) { /* ignore disconnect errors */ }
+      } catch { /* ignore disconnect errors */ }
   }
 }
 
@@ -781,7 +779,7 @@ async function flashSTM32DFU(
     }
     
     // 1b. Fix interface names if they are null (mimics fixInterfaceNames from reference)
-    if (interfaces.some((intf: any) => intf.name === null)) {
+    if (interfaces.some(intf => intf.name === null)) {
         sm.log("Reading interface names from device descriptors...");
         const tempDevice = new DFU.Device(device, interfaces[0]);
         await tempDevice.device_.open();
@@ -804,7 +802,7 @@ async function flashSTM32DFU(
     // 2. Select the first interface (standard practice), preferring Flash interface if multiple exist
     let settings = interfaces[0];
     if (interfaces.length > 1) {
-        const flashInterface = interfaces.find((a: any) => a.name && a.name.indexOf('Flash') !== -1);
+        const flashInterface = interfaces.find(a => a.name && a.name.indexOf('Flash') !== -1);
         if (flashInterface) {
             settings = flashInterface;
         }
@@ -816,7 +814,7 @@ async function flashSTM32DFU(
 
     // 4. Hook up logging helper
     let lastLoggedProgress = 0;
-    const setupLogging = (dev: any) => {
+    const setupLogging = (dev: InstanceType<typeof DFU.Device>) => {
         dev.logDebug = (msg: string) => console.debug(msg);
         dev.logInfo = (msg: string) => sm.log(msg);
         dev.logWarning = (msg: string) => sm.log(`Warning: ${msg}`);
@@ -858,10 +856,10 @@ async function flashSTM32DFU(
         const configDesc = DFU.parseConfigurationDescriptor(data);
         
         let funcDesc = null;
-        let configValue = dfu.settings.configuration.configurationValue;
+        const configValue = dfu.settings.configuration.configurationValue;
         if (configDesc.bConfigurationValue === configValue) {
-            for (let desc of configDesc.descriptors) {
-                if (desc.bDescriptorType === 0x21 && desc.hasOwnProperty("bcdDFUVersion")) {
+            for (const desc of configDesc.descriptors) {
+                if (desc.bDescriptorType === 0x21 && Object.hasOwn(desc, "bcdDFUVersion")) {
                     funcDesc = desc;
                     break;
                 }
@@ -901,7 +899,7 @@ async function flashSTM32DFU(
         if (dfuseDevice.memoryInfo) {
             sm.log(`Memory: ${dfuseDevice.memoryInfo.name}`);
             let totalSize = 0;
-            for (let segment of dfuseDevice.memoryInfo.segments) {
+            for (const segment of dfuseDevice.memoryInfo.segments) {
                 totalSize += segment.end - segment.start;
             }
             sm.log(`Total writable: ${(totalSize / 1024).toFixed(1)} KB`);
@@ -925,13 +923,14 @@ async function flashSTM32DFU(
     // without implementing it manually, but webdfu's logProgress will fire.
     try {
         await dfu.do_download(transferSize, binaryData, manifestationTolerant);
-    } catch (error: any) {
+    } catch (error) {
         // webdfu throws an error if reset fails because the device disconnected.
         // This is actually success (device rebooted).
-        if (error.message && (
-            error.message.includes("Error during reset for manifestation") || 
-            error.message.includes("The device was disconnected") ||
-            error.message.includes("Device unavailable")
+        const message = error instanceof Error ? error.message : '';
+        if (message && (
+            message.includes("Error during reset for manifestation") || 
+            message.includes("The device was disconnected") ||
+            message.includes("Device unavailable")
         )) {
             sm.log("Device reset successfully (connection lost as expected).");
         } else {
@@ -944,7 +943,7 @@ async function flashSTM32DFU(
     // Attempt closure if still connected
     try {
         await dfu.close(); 
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
     
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -985,7 +984,7 @@ async function flashSTM32UART(
       
       try {
           memoryBlocks = parseHex(hexText);
-          let totalBytes = memoryBlocks.reduce((acc, b) => acc + b.data.length, 0);
+          const totalBytes = memoryBlocks.reduce((acc, b) => acc + b.data.length, 0);
           sm.log(`HEX converted: ${totalBytes} bytes in ${memoryBlocks.length} blocks`);
       } catch (e) {
           throw new Error(`Failed to parse HEX file: ${e instanceof Error ? e.message : String(e)}`);
@@ -1046,7 +1045,7 @@ async function flashSTM32UART(
 
     sm.transition('WRITING');
     
-    let totalSize = memoryBlocks.reduce((acc, b) => acc + b.data.length, 0);
+    const totalSize = memoryBlocks.reduce((acc, b) => acc + b.data.length, 0);
     let totalWritten = 0;
     let lastLogBytes = 0;
 

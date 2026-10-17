@@ -1,4 +1,12 @@
 declare module 'webdfu' {
+  // one DFU alternate setting, as returned by findDeviceDfuInterfaces
+  export interface DFUInterfaceSettings {
+    configuration: { configurationValue: number };
+    interface: { interfaceNumber: number };
+    alternate: { alternateSetting: number; interfaceProtocol: number };
+    name: string | null;
+  }
+
   export interface WebDFUOptions {
     forceInterfacesName?: boolean;
     process?: boolean;
@@ -42,7 +50,7 @@ declare module 'webdfu' {
     static get dfuUPLOAD_IDLE(): number;
     static get dfuERROR(): number;
 
-    static findDeviceDfuInterfaces(device: USBDevice): any[];
+    static findDeviceDfuInterfaces(device: USBDevice): DFUInterfaceSettings[];
     static findAllDfuInterfaces(): Promise<DFUDevice[]>;
     static parseConfigurationDescriptor(data: DataView): {
         bConfigurationValue: number;
@@ -53,7 +61,7 @@ declare module 'webdfu' {
             wTransferSize?: number;
             wDetachTimeOut?: number;
             bcdDFUVersion?: number;
-            [key: string]: any;
+            [key: string]: unknown;
         }[];
     };
     
@@ -62,14 +70,16 @@ declare module 'webdfu' {
   }
 
   export class DFUDevice {
-    constructor(device: USBDevice, settings: any);
+    constructor(device: USBDevice, settings: DFUInterfaceSettings);
     device_: USBDevice;
-    settings: any;
+    settings: DFUInterfaceSettings;
     intfNumber: number;
     
     logDebug(msg: string): void;
     logInfo(msg: string): void;
     logWarning(msg: string): void;
+    logError(msg: string): void;
+    logProgress(done: number, total?: number): void;
     
     open(): Promise<void>;
     close(): Promise<void>;
@@ -110,7 +120,7 @@ declare module 'webdfu' {
   }
 
   export class DFUseDevice extends DFUDevice {
-    constructor(device: USBDevice, settings: any);
+    constructor(device: USBDevice, settings: DFUInterfaceSettings);
     memoryInfo: {
         name: string;
         segments: {
@@ -125,7 +135,14 @@ declare module 'webdfu' {
     startAddress: number;
     
     dfuseCommand(command: number, param?: number, len?: number): Promise<void>;
-    getSegment(addr: number): any;
+    getSegment(addr: number): {
+        start: number;
+        end: number;
+        sectorSize: number;
+        readable: boolean;
+        erasable: boolean;
+        writable: boolean;
+    } | null;
     erase(startAddr: number, length: number): Promise<void>;
     do_download(xfer_size: number, data: ArrayBuffer, manifestationTolerant: boolean): Promise<void>;
   }
