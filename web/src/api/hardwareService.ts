@@ -5,7 +5,6 @@ import { isStlinkDevice } from './stlink';
 // last updated: 2026-03-09
 
 // module-level state for selected devices
-let selectedPort: SerialPort | null = null;
 let selectedUSBDevice: USBDevice | null = null;
 
 export interface PortInfo {
@@ -33,19 +32,9 @@ export function isUSBSupported(): boolean {
   return !!navigator.usb;
 }
 
-// get currently selected serial port
-export function getSelectedPort(): SerialPort | null {
-  return selectedPort;
-}
-
 // get currently selected usb device  
 export function getSelectedUSBDevice(): USBDevice | null {
   return selectedUSBDevice;
-}
-
-// clear selected port
-export function clearSelectedPort(): void {
-  selectedPort = null;
 }
 
 // clear selected usb device
@@ -70,14 +59,14 @@ export async function requestPort(): Promise<string | null> {
   
   try {
     // spread to mutable array to satisfy strict TS types
-    selectedPort = await navigator.serial.requestPort({ filters: [...SERIAL_FILTERS] });
+    const port = await navigator.serial.requestPort({ filters: [...SERIAL_FILTERS] });
     
     // calculate the unique name for this newly selected port
     const allPorts = await navigator.serial.getPorts();
     const uniquePorts = getUniquePorts(allPorts);
-    const match = uniquePorts.find((p) => p.port === selectedPort);
+    const match = uniquePorts.find((p) => p.port === port);
     
-    return match ? match.name : formatPortName(selectedPort);
+    return match ? match.name : formatPortName(port);
   } catch {
     return null;
   }
@@ -92,7 +81,6 @@ export async function forgetAllPorts(): Promise<void> {
       await port.forget();
     }
   }
-  selectedPort = null;
 }
 
 // check if a usb device is an stm32 dfu bootloader

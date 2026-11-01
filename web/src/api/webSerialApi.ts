@@ -6,7 +6,6 @@ import { flash } from './flasher';
 import type { FlasherOptions } from './flasher';
 import type { FirmwareFile, FirmwareMetadata, FlashOptions, OutputEvent } from '../types';
 import {
-  getSelectedPort,
   getSelectedUSBDevice,
   findPortByName,
   findUSBDeviceByName,
@@ -177,8 +176,8 @@ export const api = {
       }
       return flash(activeDevice, data, flasherOptions);
     } else {
-      // use selected port or find by name
-      const activePort = getSelectedPort() || await findPortByName(typeof options.port === 'string' ? options.port : '');
+      // resolve by name: a port object goes stale if the device re-enumerates
+      const activePort = await findPortByName(typeof options.port === 'string' ? options.port : '');
       if (!activePort) throw new Error(`No serial port selected or found matching "${options.port}". Please select a port first.`);
       return flash(activePort, data, flasherOptions);
     }
